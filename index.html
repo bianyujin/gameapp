@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#6366f1">
+    <title>GAMEACG - 游戏整合平台</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="manifest" href="manifest.json">
+</head>
+<body>
+    <div id="app">
+        <header class="app-header" id="appHeader">
+            <div class="header-title" id="headerTitle">首页</div>
+            <div class="header-actions" id="headerActions"></div>
+        </header>
+
+        <main class="app-content" id="mainContent">
+            <div id="page-home" class="page active">
+                <div class="search-section">
+                    <div class="search-box">
+                        <span class="search-icon">🔍</span>
+                        <input type="text" id="homeSearch" placeholder="搜索游戏...">
+                    </div>
+                </div>
+
+                <div class="carousel-section">
+                    <div class="carousel-container" id="carousel">
+                        <div class="carousel-track" id="carouselTrack"></div>
+                        <div class="carousel-dots" id="carouselDots"></div>
+                    </div>
+                </div>
+
+                <div class="section-header">
+                    <h2 class="section-title">游戏分类</h2>
+                </div>
+                <div class="categories-grid" id="homeCategories"></div>
+
+                <div class="section-header">
+                    <h2 class="section-title">热门游戏</h2>
+                    <button class="view-toggle" id="viewToggle">
+                        <span class="view-icon">📱</span>
+                    </button>
+                </div>
+                <div class="games-grid" id="homeGames"></div>
+            </div>
+
+            <div id="page-table" class="page">
+                <div class="table-toolbar">
+                    <div class="table-search-box">
+                        <span class="search-icon">🔍</span>
+                        <input type="text" id="tableSearch" placeholder="搜索...">
+                    </div>
+                    <button class="toolbar-btn" id="filterBtn" title="筛选">🔽</button>
+                    <button class="toolbar-btn" id="sortBtn" title="排序">↕️</button>
+                </div>
+
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th class="th-icon">图标</th>
+                                <th class="th-name sortable" data-sort="title">名称</th>
+                                <th class="th-category sortable" data-sort="category">分类</th>
+                                <th class="th-rating sortable" data-sort="rating">评分</th>
+                                <th class="th-actions">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody"></tbody>
+                    </table>
+                </div>
+
+                <div class="table-footer">
+                    <div class="footer-info" id="tableInfo"></div>
+                    <div class="pagination" id="pagination"></div>
+                </div>
+            </div>
+
+            <div id="page-profile" class="page">
+                <div class="profile-header">
+                    <div class="profile-avatar">
+                        <span class="avatar-text">GA</span>
+                    </div>
+                    <div class="profile-info">
+                        <h2 class="profile-name">GAMEACG 用户</h2>
+                        <p class="profile-email">user@gameacg.com</p>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h3 class="settings-title">我的数据</h3>
+                    <div class="settings-list">
+                        <div class="settings-item" onclick="App.showFavorites()" style="cursor: pointer;">
+                            <span class="settings-icon">⭐</span>
+                            <span class="settings-label">我的收藏</span>
+                            <span class="settings-value" id="favoritesCount">0</span>
+                        </div>
+                        <div class="settings-item" onclick="App.showHistory()" style="cursor: pointer;">
+                            <span class="settings-icon">📜</span>
+                            <span class="settings-label">浏览历史</span>
+                            <span class="settings-value" id="historyCount">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h3 class="settings-title">通用设置</h3>
+                    <div class="settings-list">
+                        <div class="settings-item">
+                            <span class="settings-icon">🌙</span>
+                            <span class="settings-label">夜间模式</span>
+                            <label class="switch">
+                                <input type="checkbox" checked id="darkModeToggle">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="settings-item">
+                            <span class="settings-icon">🔄</span>
+                            <span class="settings-label">自动更新</span>
+                            <label class="switch">
+                                <input type="checkbox" checked id="autoUpdateToggle">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h3 class="settings-title">管理员</h3>
+                    <div class="settings-list">
+                        <div class="settings-item">
+                            <span class="settings-icon">🔐</span>
+                            <span class="settings-label">管理面板</span>
+                            <button class="btn-small" id="adminPanelBtn">进入</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h3 class="settings-title">用户</h3>
+                    <div class="settings-list">
+                        <div class="settings-item" id="userInfoItem">
+                            <span class="settings-icon">👤</span>
+                            <span class="settings-label" id="userStatusLabel">未登录</span>
+                            <button class="btn-small" id="userLoginBtn">登录</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h3 class="settings-title">云端同步</h3>
+                    <div class="settings-list">
+                        <div class="settings-item">
+                            <span class="settings-icon">☁️</span>
+                            <span class="settings-label">云端设置</span>
+                            <button class="btn-small" id="cloudSettingsBtn">配置</button>
+                        </div>
+                        <div class="settings-item">
+                            <span class="settings-icon">⬆️</span>
+                            <span class="settings-label">同步到云端</span>
+                            <button class="btn-small" id="syncToCloudBtn">上传</button>
+                        </div>
+                        <div class="settings-item">
+                            <span class="settings-icon">⬇️</span>
+                            <span class="settings-label">从云端获取</span>
+                            <button class="btn-small" id="syncFromCloudBtn">下载</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h3 class="settings-title">数据管理</h3>
+                    <div class="settings-list">
+                        <div class="settings-item">
+                            <span class="settings-icon">💾</span>
+                            <span class="settings-label">清除缓存</span>
+                            <button class="btn-small" id="clearCacheBtn">清除</button>
+                        </div>
+                        <div class="settings-item">
+                            <span class="settings-icon">📤</span>
+                            <span class="settings-label">导出数据</span>
+                            <button class="btn-small" id="exportDataBtn">导出</button>
+                        </div>
+                        <div class="settings-item">
+                            <span class="settings-icon">📥</span>
+                            <span class="settings-label">导入数据</span>
+                            <button class="btn-small" id="importDataBtn">导入</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h3 class="settings-title">关于</h3>
+                    <div class="settings-list">
+                        <div class="settings-item">
+                            <span class="settings-icon">ℹ️</span>
+                            <span class="settings-label">版本</span>
+                            <span class="settings-value">2.0.0</span>
+                        </div>
+                        <div class="settings-item">
+                            <span class="settings-icon">📜</span>
+                            <span class="settings-label">隐私政策</span>
+                            <span class="settings-arrow">›</span>
+                        </div>
+                        <div class="settings-item">
+                            <span class="settings-icon">📄</span>
+                            <span class="settings-label">使用条款</span>
+                            <span class="settings-arrow">›</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <nav class="app-nav">
+            <button class="nav-item active" data-page="home">
+                <span class="nav-icon">🏠</span>
+                <span class="nav-label">首页</span>
+            </button>
+            <button class="nav-item" data-page="table">
+                <span class="nav-icon">📁</span>
+                <span class="nav-label">数据</span>
+            </button>
+            <button class="nav-item" data-page="profile">
+                <span class="nav-icon">👤</span>
+                <span class="nav-label">我的</span>
+            </button>
+        </nav>
+    </div>
+
+    <div id="toast" class="toast hidden"></div>
+
+    <button class="add-game-fab" id="addGameFab" onclick="App.addNewGame()" title="添加新游戏">+</button>
+
+    <script src="js/app.js"></script>
+    <script src="js/cloud-sync.js"></script>
+    <script src="js/admin.js"></script>
+    <script src="js/review.js"></script>
+    <script>
+        document.getElementById('cloudSettingsBtn').addEventListener('click', () => CloudSync.openSettingsModal());
+        document.getElementById('syncToCloudBtn').addEventListener('click', () => CloudSync.sync());
+        document.getElementById('syncFromCloudBtn').addEventListener('click', () => CloudSync.syncFromCloud());
+        
+        document.getElementById('adminPanelBtn').addEventListener('click', () => AdminSystem.openAdminPanel());
+        
+        document.getElementById('userLoginBtn').addEventListener('click', () => {
+            if (ReviewSystem.isLoggedIn()) {
+                if (confirm('确定要退出登录吗？')) {
+                    localStorage.removeItem('gamehub_current_user');
+                    ReviewSystem.currentUser = null;
+                    App.showToast('已退出登录');
+                    location.reload();
+                }
+            } else {
+                ReviewSystem.openUserLogin();
+            }
+        });
+        
+        if (ReviewSystem.isLoggedIn()) {
+            document.getElementById('userStatusLabel').textContent = ReviewSystem.currentUser.name;
+            document.getElementById('userLoginBtn').textContent = '退出';
+        }
+        
+        if (AdminSystem.config.isAdmin) {
+            document.getElementById('addGameFab').style.display = 'flex';
+        } else {
+            document.getElementById('addGameFab').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
