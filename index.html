@@ -237,6 +237,18 @@
     <script src="js/admin.js"></script>
     <script src="js/review.js"></script>
     <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then((registration) => {
+                        console.log('Service Worker 注册成功:', registration);
+                    })
+                    .catch((error) => {
+                        console.log('Service Worker 注册失败:', error);
+                    });
+            });
+        }
+        
         document.getElementById('cloudSettingsBtn').addEventListener('click', () => CloudSync.openSettingsModal());
         document.getElementById('syncToCloudBtn').addEventListener('click', () => CloudSync.sync());
         document.getElementById('syncFromCloudBtn').addEventListener('click', () => CloudSync.syncFromCloud());
