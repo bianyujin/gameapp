@@ -36,7 +36,6 @@ const App = {
         this.loadData();
         this.bindEvents();
         this.render();
-        this.startCarousel();
     },
 
     loadData() {
@@ -128,13 +127,6 @@ const App = {
             });
         }
 
-        const homeSearch = document.getElementById('homeSearch');
-        if (homeSearch) {
-            homeSearch.addEventListener('input', (e) => {
-                this.renderHomeGames(e.target.value);
-            });
-        }
-
         const clearCacheBtn = document.getElementById('clearCacheBtn');
         if (clearCacheBtn) {
             clearCacheBtn.addEventListener('click', () => {
@@ -199,9 +191,10 @@ const App = {
         const titles = {
             home: '首页',
             table: '数据管理',
-            profile: '个人中心'
+            profile: '个人中心',
+            notion: '备用'
         };
-        document.getElementById('headerTitle').textContent = titles[page];
+        document.getElementById('headerTitle').textContent = titles[page] || 'GAMEACG';
 
         if (page === 'table') {
             this.renderTable();
@@ -304,9 +297,6 @@ const App = {
                 </td>
                 <td>${game.title || '未命名'}</td>
                 <td>${game.category || '其他'}</td>
-                <td>
-                    <span class="table-rating">⭐ ${game.rating || 0}</span>
-                </td>
                 <td>
                     <div class="table-actions">
                         <button class="table-action-btn" onclick="event.stopPropagation(); App.editGameByIndex(${gameIndex})">详情</button>
@@ -1148,8 +1138,6 @@ const App = {
     },
 
     render() {
-        this.renderCarousel();
-        this.renderCategories();
         this.renderHomeGames('');
         this.renderTable();
     },
@@ -1204,7 +1192,7 @@ const App = {
     },
 
     renderHomeGames(query) {
-        let games = this.games.slice(0, 8);
+        let games = this.games;
         if (query) {
             const q = query.toLowerCase();
             games = this.games.filter(g => 

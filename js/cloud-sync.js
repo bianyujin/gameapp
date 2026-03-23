@@ -307,43 +307,46 @@ const CloudSync = {
 
         const mapped = {
             id: game.id || Date.now() + Math.random(),
-            icon: '🎮',
-            category: '其他',
-            rating: 0,
-            downloads: '-',
-            description: '',
-            updateDate: new Date(),
-            isFavorite: false,
-            _rawFields: [],
-            _rawData: {}
+            icon: game.icon || '🎮',
+            category: game.category || '其他',
+            rating: game.rating || 0,
+            downloads: game.downloads || '-',
+            description: game.description || '',
+            updateDate: game.updateDate ? new Date(game.updateDate) : new Date(),
+            isFavorite: game.isFavorite || false,
+            _rawFields: game._rawFields ? [...game._rawFields] : [],
+            _rawData: game._rawData ? {...game._rawData} : {}
         };
 
+        if (game.title) {
+            mapped.title = game.title;
+        }
+
+        if (game.privateData) {
+            mapped.privateData = game.privateData;
+        }
+
         Object.keys(game).forEach(key => {
-            if (key === 'privateData') {
-                mapped.privateData = game[key];
+            if (['id', 'icon', 'category', 'rating', 'downloads', 'description', 'updateDate', 'isFavorite', '_rawFields', '_rawData', 'title', 'privateData'].includes(key)) {
                 return;
             }
             
-            if (key === '_rawFields' || key === '_rawData') return;
-            
             const mappedKey = fieldMap[key];
             
-            if (mappedKey === 'title') {
+            if (mappedKey === 'title' && !mapped.title) {
                 mapped.title = game[key];
-            } else if (mappedKey === 'category') {
+            } else if (mappedKey === 'category' && !mapped.category) {
                 mapped.category = game[key];
-            } else if (mappedKey === 'rating') {
+            } else if (mappedKey === 'rating' && !mapped.rating) {
                 const val = parseFloat(game[key]);
                 mapped.rating = isNaN(val) ? 0 : val;
-            } else if (mappedKey === 'icon') {
+            } else if (mappedKey === 'icon' && mapped.icon === '🎮') {
                 mapped.icon = game[key];
-            } else if (mappedKey === 'downloads') {
+            } else if (mappedKey === 'downloads' && mapped.downloads === '-') {
                 mapped.downloads = game[key];
-            } else if (mappedKey === 'description') {
+            } else if (mappedKey === 'description' && !mapped.description) {
                 mapped.description = game[key];
-            } else if (mappedKey === 'updateDate') {
-                mapped.updateDate = new Date(game[key]) || new Date();
-            } else {
+            } else if (!mapped._rawFields.includes(key)) {
                 mapped._rawFields.push(key);
                 mapped._rawData[key] = game[key];
             }
@@ -698,12 +701,7 @@ const CloudSync = {
     },
 
     async syncFromFirebase() {
-        if (!this.config.firebaseConfig) {
-            App.showToast('请先配置Firebase');
-            return;
-        }
-
-        App.showToast('正在从Firebase获取数据...');
+        App.showToast('同步中...');
 
         try {
             const response = await fetch(`${this.config.firebaseConfig.databaseURL}/games.json`);
@@ -720,10 +718,12 @@ const CloudSync = {
                 
                 this.config.lastSync = Date.now();
                 this.saveConfig();
-                App.showToast(`✅ 已获取 ${games.length} 条数据`);
+                App.showToast('同步成功');
+            } else {
+                App.showToast('同步失败');
             }
         } catch (e) {
-            App.showToast('❌ 获取失败：' + e.message);
+            App.showToast('同步失败');
         }
     },
 

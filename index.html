@@ -53,16 +53,6 @@
                 </div>
             </div>
 
-            <div id="page-notion" class="page">
-                <header class="page-header">
-                    <button class="back-btn" id="notionBackBtn">← 返回</button>
-                    <h3 class="page-title">备用</h3>
-                </header>
-                <div class="webview-container" id="notionWebView">
-                    <iframe id="notionIframe" src="" style="width: 100%; height: 100%; border: none;"></iframe>
-                </div>
-            </div>
-
             <div id="page-profile" class="page">
                 <div class="profile-header">
                     <div class="profile-avatar">
@@ -150,43 +140,12 @@
                 </div>
 
                 <div class="settings-section">
-                    <h3 class="settings-title">数据管理</h3>
-                    <div class="settings-list">
-                        <div class="settings-item">
-                            <span class="settings-icon">💾</span>
-                            <span class="settings-label">清除缓存</span>
-                            <button class="btn-small" id="clearCacheBtn">清除</button>
-                        </div>
-                        <div class="settings-item">
-                            <span class="settings-icon">📤</span>
-                            <span class="settings-label">导出数据</span>
-                            <button class="btn-small" id="exportDataBtn">导出</button>
-                        </div>
-                        <div class="settings-item">
-                            <span class="settings-icon">📥</span>
-                            <span class="settings-label">导入数据</span>
-                            <button class="btn-small" id="importDataBtn">导入</button>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="settings-section">
                     <h3 class="settings-title">关于</h3>
                     <div class="settings-list">
                         <div class="settings-item">
                             <span class="settings-icon">ℹ️</span>
                             <span class="settings-label">版本</span>
                             <span class="settings-value">2.0.0</span>
-                        </div>
-                        <div class="settings-item">
-                            <span class="settings-icon">📜</span>
-                            <span class="settings-label">隐私政策</span>
-                            <span class="settings-arrow">›</span>
-                        </div>
-                        <div class="settings-item">
-                            <span class="settings-icon">📄</span>
-                            <span class="settings-label">使用条款</span>
-                            <span class="settings-arrow">›</span>
                         </div>
                     </div>
                 </div>
@@ -234,11 +193,8 @@
         
         document.getElementById('notionBackupBtn').addEventListener('click', () => {
             const notionUrl = 'https://www.notion.so/30ad9616662180568b20d6d607924c76?v=30ad96166621802abfa8000cc45c28e6&source=copy_link';
-            document.getElementById('notionIframe').src = notionUrl;
-            App.switchPage('notion');
+            window.open(notionUrl, '_blank');
         });
-        
-        document.getElementById('notionBackBtn').addEventListener('click', () => App.switchPage('profile'));
         
         document.getElementById('hiddenAdminBtn').addEventListener('click', () => {
             AdminSystem.openAdminPanel();
