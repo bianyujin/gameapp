@@ -2,7 +2,7 @@
   "latest_version": "2.0.0",
   "update_url": "https://pan.baidu.com/s/1cnng925doaegghKTx7Oo3w?pwd=BAYJ",
   "admin_password": "520hd123",
-  "games_data_url": "https://github.com/bianyujin/gameapp/releases/download/v1.00/games.json",
+  "games_data_url": "games.json",
   "games_data_version": "2026032403",
   "notion_embed_url": "https://resonant-laser-29e.notion.site/ebd//30ad9616662180568b20d6d607924c76?v=30ad96166621802abfa8000cc45c28e6"
 }

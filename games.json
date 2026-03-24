@@ -1,0 +1,20 @@
+[
+  {
+    "id": 1,
+    "title": "测试游戏1",
+    "icon": "🎮",
+    "category": "角色扮演",
+    "rating": 4.5,
+    "downloads": "1000+",
+    "description": "这是一个测试游戏"
+  },
+  {
+    "id": 2,
+    "title": "测试游戏2",
+    "icon": "🎯",
+    "category": "动作",
+    "rating": 4.0,
+    "downloads": "500+",
+    "description": "这是另一个测试游戏"
+  }
+]
