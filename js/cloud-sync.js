@@ -771,10 +771,15 @@ const CloudSync = {
         const firebaseUrl = '';
         const githubUrl = '';
         
-        this.config.gamesDataVersion = '';
+        await this.loadCloudConfig();
+        
+        if (!this.config.gamesDataUrl) {
+            throw new Error('请先在config.json中配置games_data_url');
+        }
+        
         this.config.localDataVersion = null;
-        console.log('GitHub CDN URL: (从config.json加载)');
-        console.log('Firebase URL (备用): (从config.json加载)');
+        console.log('GitHub CDN URL:', this.config.gamesDataUrl);
+        console.log('Firebase URL (备用):', firebaseUrl);
 
         try {
             let success = false;
@@ -782,7 +787,6 @@ const CloudSync = {
             
             try {
                 console.log('尝试从 GitHub CDN 同步...');
-                this.config.gamesDataUrl = githubUrl;
                 await this.syncFromGamesJson();
                 success = true;
                 console.log('GitHub CDN 同步成功!');
@@ -791,11 +795,16 @@ const CloudSync = {
                 error = e.message;
                 
                 try {
-                    console.log('GitHub CDN 失败，尝试 Firebase (备用)...');
-                    this.config.gamesDataUrl = firebaseUrl;
-                    await this.syncFromGamesJson();
-                    success = true;
-                    console.log('Firebase 同步成功!');
+                    if (firebaseUrl) {
+                        console.log('GitHub CDN 失败，尝试 Firebase (备用)...');
+                        const originalUrl = this.config.gamesDataUrl;
+                        this.config.gamesDataUrl = firebaseUrl;
+                        await this.syncFromGamesJson();
+                        success = true;
+                        console.log('Firebase 同步成功!');
+                    } else {
+                        throw e;
+                    }
                 } catch (e2) {
                     console.error('Firebase 同步失败:', e2);
                     error = e2.message;
@@ -1169,15 +1178,27 @@ const CloudSync = {
     },
 
     async loadCloudConfig(forceRefresh = false) {
-        console.log('使用默认配置（从config.json加载）');
-        this.config.latestVersion = '';
-        this.config.updateUrl = '';
-        this.config.cloudAdminPassword = '';
-        this.config.gamesDataUrl = '';
-        this.config.gamesDataVersion = '';
-        this.config.notionEmbedUrl = '';
+        console.log('尝试从config.json加载配置...');
+        
+        try {
+            const response = await fetch('config.json');
+            if (response.ok) {
+                const configData = await response.json();
+                this.config.latestVersion = configData.latest_version || '';
+                this.config.updateUrl = configData.update_url || '';
+                this.config.cloudAdminPassword = configData.admin_password || '';
+                this.config.gamesDataUrl = configData.games_data_url || '';
+                this.config.gamesDataVersion = configData.games_data_version || '';
+                this.config.notionEmbedUrl = configData.notion_embed_url || '';
+                console.log('从config.json加载成功:', this.config);
+            } else {
+                console.log('无法从config.json加载');
+            }
+        } catch (e) {
+            console.log('加载config.json失败:', e);
+        }
+        
         this.saveConfig();
-        console.log('配置已应用（需从config.json加载）:', this.config);
         return true;
     },
 
