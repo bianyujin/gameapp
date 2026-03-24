@@ -33,10 +33,34 @@ const App = {
 
     init() {
         this.isAdmin = localStorage.getItem('gamehub_is_admin') === 'true';
+        this.loadDarkMode();
         this.loadData();
         this.bindEvents();
         this.render();
         this.startCarousel();
+    },
+
+    loadDarkMode() {
+        const isDarkMode = localStorage.getItem('gamehub_dark_mode') !== 'false';
+        if (isDarkMode) {
+            document.body.classList.remove('light-mode');
+        } else {
+            document.body.classList.add('light-mode');
+        }
+        const darkModeToggle = document.getElementById('darkModeToggle');
+        if (darkModeToggle) {
+            darkModeToggle.checked = isDarkMode;
+        }
+    },
+
+    toggleDarkMode(isDark) {
+        if (isDark) {
+            document.body.classList.remove('light-mode');
+            localStorage.setItem('gamehub_dark_mode', 'true');
+        } else {
+            document.body.classList.add('light-mode');
+            localStorage.setItem('gamehub_dark_mode', 'false');
+        }
     },
 
     loadData() {
@@ -128,26 +152,7 @@ const App = {
             });
         }
 
-        const homeSearch = document.getElementById('homeSearch');
-        if (homeSearch) {
-            homeSearch.addEventListener('input', (e) => {
-                this.renderHomeGames(e.target.value);
-            });
-        }
 
-        const homeFilterBtn = document.getElementById('homeFilterBtn');
-        if (homeFilterBtn) {
-            homeFilterBtn.addEventListener('click', () => {
-                this.openFilterModal();
-            });
-        }
-
-        const homeSortBtn = document.getElementById('homeSortBtn');
-        if (homeSortBtn) {
-            homeSortBtn.addEventListener('click', () => {
-                this.openSortModal();
-            });
-        }
 
         const clearCacheBtn = document.getElementById('clearCacheBtn');
         if (clearCacheBtn) {
@@ -180,6 +185,7 @@ const App = {
         const darkModeToggle = document.getElementById('darkModeToggle');
         if (darkModeToggle) {
             darkModeToggle.addEventListener('change', (e) => {
+                this.toggleDarkMode(e.target.checked);
                 this.showToast(e.target.checked ? '夜间模式已开启' : '夜间模式已关闭');
             });
         }
@@ -319,13 +325,9 @@ const App = {
     renderTable() {
         const games = this.getFilteredGames();
         const total = games.length;
-        const start = (this.tableState.currentPage - 1) * this.tableState.pageSize;
-        const end = start + this.tableState.pageSize;
-        const pageGames = games.slice(start, end);
-        const totalPages = Math.ceil(total / this.tableState.pageSize);
 
         const container = document.getElementById('tableBody');
-        container.innerHTML = pageGames.map((game, index) => {
+        container.innerHTML = games.map((game, index) => {
             const gameIndex = this.games.indexOf(game);
             return `
             <div class="game-card" onclick="App.editGameByIndex(${gameIndex})">
@@ -342,8 +344,6 @@ const App = {
 
         document.getElementById('tableInfo').textContent = 
             `共 ${total} 条`;
-
-        this.renderPagination(totalPages);
         
         this.updateProfileCounts();
     },
@@ -1183,7 +1183,10 @@ const App = {
     render() {
         this.renderCarousel();
         this.renderCategories();
-        this.renderHomeGames('');
+        const homeGamesContainer = document.getElementById('homeGames');
+        if (homeGamesContainer) {
+            this.renderHomeGames('');
+        }
         this.renderTable();
     },
 
