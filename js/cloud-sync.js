@@ -324,27 +324,31 @@ const CloudSync = {
 
         const mapped = {
             id: game.id || Date.now() + Math.random(),
-            icon: game.icon || '🎮',
+            icon: '🎮',
             category: '',
-            rating: game.rating || 0,
-            downloads: game.downloads || '-',
-            description: game.description || '',
-            updateDate: game.updateDate ? new Date(game.updateDate) : new Date(),
-            isFavorite: game.isFavorite || false,
+            rating: 0,
+            downloads: '-',
+            description: '',
+            updateDate: new Date(),
+            isFavorite: false,
             _rawFields: [],
             _rawData: {}
         };
         
         const allData = {...game, ...game._rawData};
-        if (allData['类型']) {
-            mapped.category = allData['类型'];
-        }
-        if (allData['游戏名[大小]'] && !mapped.title) {
-            mapped.title = allData['游戏名[大小]'];
-        }
-
-        if (game.title) {
-            mapped.title = game.title;
+        
+        for (const key in allData) {
+            if (key === '类型' || key === '分类' || key === '类别') {
+                if (allData[key]) {
+                    mapped.category = allData[key];
+                    console.log('✅ 从', key, '读取到分类:', allData[key]);
+                }
+            }
+            if (key === '游戏名[大小]' || key === '游戏名' || key === '游戏名称' || key === '标题') {
+                if (allData[key] && !mapped.title) {
+                    mapped.title = allData[key];
+                }
+            }
         }
 
         if (game.privateData) {
@@ -401,7 +405,7 @@ const CloudSync = {
                 continue;
             }
             
-            if (['id', 'icon', 'rating', 'downloads', 'description', 'updateDate', 'isFavorite', '_rawFields', '_rawData', 'title', 'privateData', '_fieldMap'].includes(key)) {
+            if (['id', 'icon', 'category', 'rating', 'downloads', 'description', 'updateDate', 'isFavorite', '_rawFields', '_rawData', 'title', 'privateData', '_fieldMap'].includes(key)) {
                 continue;
             }
             
@@ -419,8 +423,6 @@ const CloudSync = {
             
             if (mappedKey === 'title' && !mapped.title) {
                 mapped.title = allData[key];
-            } else if (mappedKey === 'category') {
-                mapped.category = allData[key];
             } else if (mappedKey === 'rating' && !mapped.rating) {
                 const val = parseFloat(allData[key]);
                 mapped.rating = isNaN(val) ? 0 : val;
@@ -439,8 +441,10 @@ const CloudSync = {
 
         if (!mapped.category) {
             mapped.category = '其他';
+            console.log('⚠️ 未找到分类字段，使用默认值: 其他');
         }
 
+        console.log('最终分类:', mapped.category);
         return mapped;
     },
 
