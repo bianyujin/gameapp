@@ -757,16 +757,17 @@ const CloudSync = {
 
     async syncFromCloud() {
         App.showToast('同步中...');
+        console.log('=== syncFromCloud开始 ===');
+        
+        this.config.gamesDataUrl = 'https://galgame-a5758-default-rtdb.asia-southeast1.firebasedatabase.app/games.json';
+        this.config.gamesDataVersion = '2026032403';
+        this.config.localDataVersion = null;
+        console.log('硬编码gamesDataUrl:', this.config.gamesDataUrl);
 
         try {
-            await this.loadCloudConfig();
-
-            if (this.config.gamesDataUrl) {
-                await this.syncFromGamesJson();
-                return;
-            }
-            
-            App.showToast('数据地址未配置');
+            console.log('开始同步游戏数据...');
+            await this.syncFromGamesJson();
+            console.log('同步完成!');
         } catch (e) {
             console.error('同步失败:', e);
             App.showToast('同步失败: ' + e.message);
@@ -781,9 +782,19 @@ const CloudSync = {
             return;
         }
 
-        const response = await fetch(this.config.gamesDataUrl);
+        let url = this.config.gamesDataUrl;
+        
+        if (url.includes('github.com') && url.includes('releases/download')) {
+            url = url.replace('github.com/bianyujin/gameapp/releases/download/', 'cdn.jsdelivr.net/gh/bianyujin/gameapp@');
+        }
+        
+        console.log('请求URL:', url);
+        const response = await fetch(url);
+        console.log('响应状态:', response.status);
+        console.log('响应ok:', response.ok);
         
         if (!response.ok) {
+            console.error('响应失败, 状态:', response.status);
             throw new Error('下载失败');
         }
         
@@ -1105,35 +1116,17 @@ const CloudSync = {
 
     async loadCloudConfig(forceRefresh = false) {
         try {
-            let url;
+            const url = './config.json';
             
-            if (this.config.configSource === 'github' && this.config.githubConfigUrl) {
-                url = this.config.githubConfigUrl;
-            } else if (this.config.firebaseConfig?.databaseURL) {
-                url = `${this.config.firebaseConfig.databaseURL}/config.json`;
-            } else {
-                url = './config.json';
-            }
+            console.log('Loading config from:', url);
             
-            const headers = {};
+            const response = await fetch(url);
             
-            if (!forceRefresh && this.config.lastConfigEtag) {
-                headers['If-None-Match'] = this.config.lastConfigEtag;
-            }
-
-            const response = await fetch(url, { headers });
-            
-            if (response.status === 304 && !forceRefresh) {
-                return true;
-            }
-            
-            const etag = response.headers.get('ETag');
-            if (etag) {
-                this.config.lastConfigEtag = etag;
-            }
+            console.log('Config response status:', response.status);
             
             if (response.ok) {
                 const config = await response.json();
+                console.log('Loaded config:', config);
                 this.config.latestVersion = config?.latest_version || null;
                 this.config.updateUrl = config?.update_url || null;
                 this.config.cloudAdminPassword = config?.admin_password || null;
@@ -1142,12 +1135,25 @@ const CloudSync = {
                 this.config.notionCsvUrl = config?.notion_csv_url || null;
                 this.config.notionEmbedUrl = config?.notion_embed_url || null;
                 this.saveConfig();
+                console.log('Updated config:', this.config);
                 return true;
+            } else {
+                console.error('Failed to load config, status:', response.status);
             }
         } catch (e) {
             console.error('读取云端配置失败:', e);
         }
-        return false;
+        
+        console.log('使用硬编码默认配置');
+        this.config.latestVersion = '2.0.0';
+        this.config.updateUrl = 'https://pan.baidu.com/s/1cnng925doaegghKTx7Oo3w?pwd=BAYJ';
+        this.config.cloudAdminPassword = '520hd123';
+        this.config.gamesDataUrl = 'https://github.com/bianyujin/gameapp/releases/download/v1.00/games.json';
+        this.config.gamesDataVersion = '2026032403';
+        this.config.notionEmbedUrl = 'https://resonant-laser-29e.notion.site/ebd//30ad9616662180568b20d6d607924c76?v=30ad96166621802abfa8000cc45c28e6';
+        this.saveConfig();
+        console.log('硬编码配置已应用:', this.config);
+        return true;
     },
 
     async checkVersionUpdate() {
