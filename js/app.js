@@ -38,6 +38,58 @@ const App = {
         this.bindEvents();
         this.render();
         this.startCarousel();
+        this.loadRandomImage();
+        
+        const addGameFab = document.getElementById('addGameFab');
+        if (addGameFab) {
+            addGameFab.style.display = 'flex';
+        }
+    },
+
+    loadRandomImage() {
+        const img = document.getElementById('randomImage');
+        const placeholder = document.getElementById('imagePlaceholder');
+        
+        if (!img || !placeholder) return;
+        
+        img.style.display = 'none';
+        placeholder.style.display = 'flex';
+        placeholder.querySelector('.placeholder-text').textContent = '加载中...';
+        
+        const loadImage = (url) => {
+            img.onload = () => {
+                img.style.display = 'block';
+                placeholder.style.display = 'none';
+            };
+            
+            img.onerror = () => {
+                placeholder.querySelector('.placeholder-text').textContent = '加载失败，点击刷新按钮重试';
+                console.log('图片加载失败');
+            };
+            
+            img.src = url + '?t=' + Date.now();
+        };
+        
+        fetch('https://api.lolicon.app/setu/v2?r18=0')
+            .then(response => response.json())
+            .then(data => {
+                if (data && data.data && data.data[0] && data.data[0].urls) {
+                    const imageUrl = data.data[0].urls.regular || data.data[0].urls.original;
+                    loadImage(imageUrl);
+                } else {
+                    throw new Error('API返回格式不对');
+                }
+            })
+            .catch(error => {
+                console.log('Lolicon API失败，使用备用API:', error);
+                const backupApis = [
+                    'https://img.xjh.me/random_img.php',
+                    'https://www.dmoe.cc/random.php',
+                    'https://api.btstu.cn/sjbz/api.php'
+                ];
+                const randomApi = backupApis[Math.floor(Math.random() * backupApis.length)];
+                loadImage(randomApi);
+            });
     },
 
     loadDarkMode() {
@@ -222,6 +274,11 @@ const App = {
             profile: '个人中心'
         };
         document.getElementById('headerTitle').textContent = titles[page];
+
+        const addGameFab = document.getElementById('addGameFab');
+        if (addGameFab) {
+            addGameFab.style.display = 'flex';
+        }
 
         if (page === 'table') {
             this.renderTable();
@@ -506,9 +563,83 @@ const App = {
     },
 
     openEditModal(game, index) {
-        const rawFields = game._rawFields || Object.keys(game._rawData || {});
+        const allRawFields = game._rawFields || Object.keys(game._rawData || {});
+        const privateKeys = new Set(Object.keys(game.privateData || {}));
+        const mappedFields = new Set([
+            '游戏名', '游戏名称', '名称', '标题', '游戏标题', 'title',
+            '类型', '分类', '类别', 'category',
+            '图标', 'icon',
+            '评分', '分数', 'rating',
+            '下载量', '下载', 'downloads',
+            '介绍', '描述', '简介', 'description',
+            '社团', '开发商', '开发商/社团', 'developer',
+            '评价', '简评', 'review'
+        ]);
         
-        const rawFieldsHtml = rawFields.map((k, i) => `
+        const desiredOrder = [
+            { key: 'id', patterns: ['文件ID', 'fileid', '^id$'] },
+            { key: '备注', patterns: ['备注'] },
+            { key: '百度', patterns: ['百度'] },
+            { key: '迅雷', patterns: ['迅雷'] },
+            { key: 'UC', patterns: ['UC'] },
+            { key: '预览', patterns: ['预览'] },
+            { key: '排雷|评价', patterns: ['排雷|评价'] },
+            { key: '评级', patterns: ['评级'] },
+            { key: '评级（成品级别）', patterns: ['评级（成品级别）'] },
+            { key: '剧情有无代入感', patterns: ['剧情有无代入感'] },
+            { key: '实用度如何', patterns: ['实用度如何'] },
+            { key: '20分好不好冲', patterns: ['20分好不好冲'] },
+            { key: '画风立绘建模', patterns: ['画风立绘建模'] },
+            { key: 'CV质量', patterns: ['CV质量'] },
+            { key: '游戏性|玩法', patterns: ['游戏性|玩法'] },
+            { key: '内容cg丰富度', patterns: ['内容cg丰富度'] },
+            { key: '修正分', patterns: ['修正分'] },
+            { key: '封面', patterns: ['封面'] },
+            { key: '攻略', patterns: ['攻略'] },
+            { key: 'DL号|社团|作者', patterns: ['DL号|社团|作者'] },
+            { key: '最后修改时间', patterns: ['最后修改时间'] },
+            { key: '创建时间', patterns: ['创建时间'] }
+        ];
+        
+        let filteredFields = allRawFields.filter(k => {
+            if (!this.isAdmin && privateKeys.has(k)) {
+                return false;
+            }
+            if (mappedFields.has(k)) {
+                return false;
+            }
+            const isGameName = k.includes('游戏名') || k.includes('游戏名称');
+            if (isGameName) {
+                return false;
+            }
+            return true;
+        });
+        
+        const orderedFields = [];
+        const usedFields = new Set();
+        
+        desiredOrder.forEach(({ key, patterns }) => {
+            const match = filteredFields.find(f => {
+                return patterns.some(p => {
+                    if (p.startsWith('^') && p.endsWith('$')) {
+                        return new RegExp(p, 'i').test(f);
+                    }
+                    return f.includes(p);
+                });
+            });
+            if (match && !usedFields.has(match)) {
+                orderedFields.push(match);
+                usedFields.add(match);
+            }
+        });
+        
+        filteredFields.forEach(f => {
+            if (!usedFields.has(f)) {
+                orderedFields.push(f);
+            }
+        });
+        
+        const rawFieldsHtml = orderedFields.map((k, i) => `
             <div class="form-group raw-field" data-field="${k}" data-index="${i}">
                 <label class="form-label" style="display: flex; justify-content: space-between; align-items: center;">
                     <span>${k}</span>
@@ -573,10 +704,10 @@ const App = {
                             </div>
                         ` : ''}
                         
-                        ${rawFields.length > 0 ? `
+                        ${orderedFields.length > 0 ? `
                             <div style="border-top: 1px solid #334155; padding-top: 16px; margin-top: 8px;">
                                 <label class="form-label" style="color: #94a3b8; margin-bottom: 12px;">
-                                    📝 自定义字段 (${rawFields.length}个) ${this.isAdmin ? '- 点击↑↓调整顺序' : ''}
+                                    📝 自定义字段 (${orderedFields.length}个) ${this.isAdmin ? '- 点击↑↓调整顺序' : ''}
                                 </label>
                                 <div id="rawFieldsContainer">
                                     ${rawFieldsHtml}

@@ -380,6 +380,16 @@ const CloudSync = {
         }
 
         for (const key of allKeys) {
+            const keyClean = key.toLowerCase().replace(/[\[\]（）\(\)\s]/g, '');
+            
+            if (key.includes('文件ID') || keyClean.includes('fileid') || keyClean.includes('id') && keyClean.length <= 3) {
+                mapped._rawData[key] = allData[key];
+                if (!mapped._rawFields.includes(key)) {
+                    mapped._rawFields.unshift(key);
+                }
+                continue;
+            }
+            
             if (['id', 'icon', 'category', 'rating', 'downloads', 'description', 'updateDate', 'isFavorite', '_rawFields', '_rawData', 'title', 'privateData', '_fieldMap'].includes(key)) {
                 continue;
             }
@@ -387,7 +397,6 @@ const CloudSync = {
             let mappedKey = fieldMap[key];
             
             if (!mappedKey) {
-                const keyClean = key.toLowerCase().replace(/[\[\]（）\(\)\s]/g, '');
                 for (const originalKey in fieldMap) {
                     const originalClean = originalKey.toLowerCase().replace(/[\[\]（）\(\)\s]/g, '');
                     if (keyClean.includes(originalClean) || originalClean.includes(keyClean)) {

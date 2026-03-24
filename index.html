@@ -21,8 +21,14 @@
                 <div class="section-header">
                     <h2 class="section-title">首页</h2>
                 </div>
-                <div style="padding: 40px 20px; text-align: center; color: var(--text-muted);">
-                    这里预留放别的内容
+                <div class="random-image-section">
+                    <div class="random-image-container" id="randomImageContainer">
+                        <img id="randomImage" src="" alt="随机图片" style="display: none;">
+                        <div class="image-placeholder" id="imagePlaceholder">
+                            <div class="placeholder-icon">🖼️</div>
+                            <div class="placeholder-text">加载中...</div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -166,7 +172,7 @@
 
     <div id="toast" class="toast hidden"></div>
 
-    <button class="add-game-fab" id="addGameFab" onclick="App.addNewGame()" title="添加新游戏">+</button>
+    <button class="add-game-fab" id="addGameFab" onclick="App.loadRandomImage()" title="刷新图片">🔄</button>
 
     <script src="js/app.js"></script>
     <script src="js/cloud-sync.js"></script>
