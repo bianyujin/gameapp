@@ -17,7 +17,7 @@ const App = {
     currentPage: 'home',
     tableTab: 'all',
     tableState: {
-        sortColumn: 'updateDate',
+        sortColumn: null,
         sortDirection: 'desc',
         currentPage: 1,
         pageSize: 6,
@@ -25,7 +25,8 @@ const App = {
         selectedItems: [],
         filterCategories: new Set(),
         minRating: 0,
-        maxRating: 5
+        maxRating: 5,
+        isRandomSorted: false
     },
     carouselIndex: 0,
     carouselInterval: null,
@@ -341,6 +342,10 @@ const App = {
             parseFloat(g.rating) <= this.tableState.maxRating
         );
 
+        if (this.tableState.isRandomSorted) {
+            return games;
+        }
+
         if (this.tableState.sortColumn) {
             games.sort((a, b) => {
                 let aVal = a[this.tableState.sortColumn];
@@ -367,12 +372,12 @@ const App = {
                 const bDate = new Date(b.updateDate || 0);
                 
                 if (aDate.getTime() !== bDate.getTime()) {
-                    return bDate - aDate;
+                    return aDate - bDate;
                 }
                 
                 const aId = String(a.id || '');
                 const bId = String(b.id || '');
-                return bId.localeCompare(aId);
+                return aId.localeCompare(bId);
             });
         }
 
@@ -565,6 +570,13 @@ const App = {
     openEditModal(game, index) {
         const allRawFields = game._rawFields || Object.keys(game._rawData || {});
         const privateKeys = new Set(Object.keys(game.privateData || {}));
+        
+        const privateFieldKeywords = [
+            '搜索', '更新日志', 'FB', '视频', '广告',
+            '分享', '下载', '链接', '密码', '私有',
+            '版本及更新时间', '版本及更新日志', '版本', '更新时间'
+        ];
+        
         const mappedFields = new Set([
             '游戏名', '游戏名称', '名称', '标题', '游戏标题', 'title',
             '类型', '分类', '类别', 'category',
@@ -601,11 +613,33 @@ const App = {
             { key: '创建时间', patterns: ['创建时间'] }
         ];
         
+        const isPrivateField = (fieldName) => {
+            if (privateKeys.has(fieldName)) return true;
+            return privateFieldKeywords.some(keyword => 
+                fieldName.includes(keyword)
+            );
+        };
+        
+        const allPrivateFields = {};
+        if (game.privateData) {
+            Object.assign(allPrivateFields, game.privateData);
+        }
+        if (this.isAdmin && game._rawData) {
+            Object.keys(game._rawData).forEach(k => {
+                if (!allPrivateFields.hasOwnProperty(k) && isPrivateField(k)) {
+                    allPrivateFields[k] = game._rawData[k];
+                }
+            });
+        }
+        
         let filteredFields = allRawFields.filter(k => {
-            if (!this.isAdmin && privateKeys.has(k)) {
+            if (!this.isAdmin && isPrivateField(k)) {
                 return false;
             }
             if (mappedFields.has(k)) {
+                return false;
+            }
+            if (isPrivateField(k)) {
                 return false;
             }
             const isGameName = k.includes('游戏名') || k.includes('游戏名称');
@@ -693,12 +727,12 @@ const App = {
                             <div class="form-textarea" style="background: #0f172a; min-height: 40px;">${game.description || '-'}</div>
                         </div>
                         
-                        ${game.privateData && Object.keys(game.privateData).length > 0 ? `
+                        ${this.isAdmin && Object.keys(allPrivateFields).length > 0 ? `
                             <div style="background: #422006; padding: 12px; border-radius: 8px; margin-bottom: 16px;">
                                 <label class="form-label" style="color: #f59e0b;">🔒 私有数据</label>
                                 <div style="font-size: 13px; color: #fcd34d;">
-                                    ${Object.keys(game.privateData).map(k => 
-                                        `<div style="margin-bottom: 4px;"><strong>${k}:</strong> ${String(game.privateData[k]).substring(0, 100)}</div>`
+                                    ${Object.keys(allPrivateFields).map(k => 
+                                        `<div style="margin-bottom: 4px;"><strong>${k}:</strong> ${String(allPrivateFields[k]).substring(0, 100)}</div>`
                                     ).join('')}
                                 </div>
                             </div>
@@ -977,6 +1011,8 @@ const App = {
             const j = Math.floor(Math.random() * (i + 1));
             [this.games[i], this.games[j]] = [this.games[j], this.games[i]];
         }
+        this.tableState.isRandomSorted = true;
+        this.tableState.sortColumn = null;
         this.closeSortModal();
         this.renderTable();
         this.renderHomeGames(document.getElementById('homeSearch')?.value || '');
@@ -984,6 +1020,7 @@ const App = {
     },
 
     sortGames(column, direction) {
+        this.tableState.isRandomSorted = false;
         this.games.sort((a, b) => {
             let valA = a[column];
             let valB = b[column];
@@ -1384,18 +1421,20 @@ const App = {
             );
         }
 
-        games.sort((a, b) => {
-            const aDate = new Date(a.updateDate || 0);
-            const bDate = new Date(b.updateDate || 0);
-            
-            if (aDate.getTime() !== bDate.getTime()) {
-                return bDate - aDate;
-            }
-            
-            const aId = String(a.id || '');
-            const bId = String(b.id || '');
-            return bId.localeCompare(aId);
-        });
+        if (!this.tableState.isRandomSorted) {
+            games.sort((a, b) => {
+                const aDate = new Date(a.updateDate || 0);
+                const bDate = new Date(b.updateDate || 0);
+                
+                if (aDate.getTime() !== bDate.getTime()) {
+                    return aDate - bDate;
+                }
+                
+                const aId = String(a.id || '');
+                const bId = String(b.id || '');
+                return aId.localeCompare(bId);
+            });
+        }
 
         const container = document.getElementById('homeGames');
         container.innerHTML = games.map(game => `
