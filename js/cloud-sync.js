@@ -769,9 +769,25 @@ const CloudSync = {
         console.log('=== syncFromCloud开始 ===');
         
         const firebaseUrl = '';
-        const githubUrl = '';
         
-        await this.loadCloudConfig();
+        console.log('尝试加载config.json...');
+        try {
+            const configResponse = await fetch('config.json');
+            if (configResponse.ok) {
+                const configData = await configResponse.json();
+                console.log('config.json加载成功:', configData);
+                this.config.latestVersion = configData.latest_version || '';
+                this.config.updateUrl = configData.update_url || '';
+                this.config.cloudAdminPassword = configData.admin_password || '';
+                this.config.gamesDataUrl = configData.games_data_url || '';
+                this.config.gamesDataVersion = configData.games_data_version || '';
+                this.config.notionEmbedUrl = configData.notion_embed_url || '';
+            } else {
+                throw new Error('config.json加载失败');
+            }
+        } catch (e) {
+            console.error('加载config.json失败:', e);
+        }
         
         if (!this.config.gamesDataUrl) {
             throw new Error('请先在config.json中配置games_data_url');
@@ -847,6 +863,10 @@ const CloudSync = {
 
         let url = this.config.gamesDataUrl;
         
+        if (!url) {
+            throw new Error('games_data_url未配置，请检查config.json');
+        }
+        
         if (url.includes('github.com') && url.includes('releases/download')) {
             url = url.replace('github.com/bianyujin/gameapp/releases/download/', 'cdn.jsdelivr.net/gh/bianyujin/gameapp@');
         }
@@ -858,10 +878,23 @@ const CloudSync = {
         
         if (!response.ok) {
             console.error('响应失败, 状态:', response.status);
-            throw new Error('下载失败');
+            throw new Error(`下载失败 (状态码: ${response.status})`);
         }
         
-        const data = await response.json();
+        const responseText = await response.text();
+        console.log('响应内容前200字符:', responseText.substring(0, 200));
+        
+        if (responseText.trim().startsWith('<!DOCTYPE') || responseText.trim().startsWith('<html')) {
+            throw new Error('返回的是HTML页面，不是JSON数据，请检查URL是否正确');
+        }
+        
+        let data;
+        try {
+            data = JSON.parse(responseText);
+        } catch (e) {
+            console.error('JSON解析失败:', e);
+            throw new Error('JSON解析失败，请检查数据格式');
+        }
         
         if (data) {
             let games;
