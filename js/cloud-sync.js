@@ -325,7 +325,7 @@ const CloudSync = {
         const mapped = {
             id: game.id || Date.now() + Math.random(),
             icon: game.icon || '🎮',
-            category: game.category || '',
+            category: '',
             rating: game.rating || 0,
             downloads: game.downloads || '-',
             description: game.description || '',
@@ -334,6 +334,14 @@ const CloudSync = {
             _rawFields: [],
             _rawData: {}
         };
+        
+        const allData = {...game, ...game._rawData};
+        if (allData['类型']) {
+            mapped.category = allData['类型'];
+        }
+        if (allData['游戏名[大小]'] && !mapped.title) {
+            mapped.title = allData['游戏名[大小]'];
+        }
 
         if (game.title) {
             mapped.title = game.title;
@@ -362,7 +370,6 @@ const CloudSync = {
             }
         });
 
-        const allData = {...game, ...mapped._rawData};
         const allKeys = Object.keys(allData);
 
         if (!mapped.title) {
