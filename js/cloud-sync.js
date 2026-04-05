@@ -290,166 +290,113 @@ const CloudSync = {
     },
 
     mapGameFields(game) {
-        const fieldMap = {
-            '游戏名': 'title',
-            '游戏名称': 'title',
-            '名称': 'title',
-            '标题': 'title',
-            '游戏标题': 'title',
-            'title': 'title',
-            '图标': 'icon',
-            'icon': 'icon',
-            '类型': 'category',
-            '分类': 'category',
-            '类别': 'category',
-            'category': 'category',
-            '评分': 'rating',
-            '分数': 'rating',
-            'rating': 'rating',
-            '下载量': 'downloads',
-            '下载': 'downloads',
-            'downloads': 'downloads',
-            '介绍': 'description',
-            '描述': 'description',
-            '简介': 'description',
-            'description': 'description',
-            '社团': 'developer',
-            '开发商': 'developer',
-            '开发商/社团': 'developer',
-            'developer': 'developer',
-            '评价': 'review',
-            '简评': 'review',
-            'review': 'review'
+        const internalFields = ['id', 'icon', 'category', 'rating', 'downloads', 'description', 'updateDate', 'isFavorite', '_rawFields', '_rawData', 'title', 'privateData', '_fieldMap'];
+        
+        const privateKeywords = ['搜索', '更新日志', 'FB', '版本及更新时间', '视频'];
+        
+        const isPrivateField = (key) => {
+            return privateKeywords.some(kw => key.includes(kw));
         };
 
         const mapped = {
             id: game.id || Date.now() + Math.random(),
             icon: '🎮',
-            category: '',
+            category: '其他',
             rating: 0,
             downloads: '-',
             description: '',
             updateDate: new Date(),
             isFavorite: false,
             _rawFields: [],
-            _rawData: {}
+            _rawData: {},
+            privateData: {}
         };
         
-        const allData = {...game, ...game._rawData};
+        const allData = {...game};
+        if (game._rawData) {
+            Object.assign(allData, game._rawData);
+        }
+        
+        if (game.privateData) {
+            Object.assign(mapped.privateData, game.privateData);
+        }
         
         for (const key in allData) {
-            if (key === '类型' || key === '分类' || key === '类别') {
-                if (allData[key]) {
-                    mapped.category = allData[key];
-                    console.log('✅ 从', key, '读取到分类:', allData[key]);
-                }
-            }
-            if (key === '游戏名[大小]' || key === '游戏名' || key === '游戏名称' || key === '标题') {
-                if (allData[key] && !mapped.title) {
-                    mapped.title = allData[key];
-                }
-            }
-        }
-
-        if (game.privateData) {
-            mapped.privateData = game.privateData;
-        }
-
-        const fieldNameMap = game._fieldMap || {};
-
-        const rawData = game._rawData || {};
-        Object.keys(rawData).forEach(sanitizedKey => {
-            const originalKey = fieldNameMap[sanitizedKey] || sanitizedKey;
-            mapped._rawData[originalKey] = rawData[sanitizedKey];
-            if (!mapped._rawFields.includes(originalKey)) {
-                mapped._rawFields.push(originalKey);
-            }
-        });
-
-        const rawFieldsFromGame = game._rawFields || [];
-        rawFieldsFromGame.forEach(sanitizedKey => {
-            const originalKey = fieldNameMap[sanitizedKey] || sanitizedKey;
-            if (!mapped._rawFields.includes(originalKey)) {
-                mapped._rawFields.push(originalKey);
-            }
-        });
-
-        const allKeys = Object.keys(allData);
-
-        if (!mapped.title) {
-            for (const key of allKeys) {
-                const keyClean = key.toLowerCase().replace(/[\[\]（）\(\)\s]/g, '');
-                if (keyClean.includes('游戏名') || keyClean.includes('游戏名称') || 
-                    keyClean.includes('名称') || keyClean.includes('标题') || 
-                    keyClean.includes('title')) {
-                    if (allData[key]) {
-                        mapped.title = allData[key];
-                        break;
-                    }
-                }
-            }
-        }
-
-        for (const key of allKeys) {
-            const keyClean = key.toLowerCase().replace(/[\[\]（）\(\)\s]/g, '');
+            if (internalFields.includes(key)) continue;
             
-            if (key === 'id') {
+            const value = allData[key];
+            if (value === undefined || value === null) continue;
+            
+            if (key === '类型' || key === '分类' || key === '类别') {
+                if (value) {
+                    mapped.category = value;
+                }
                 continue;
             }
             
-            mapped[key] = allData[key];
+            if (key === '游戏名[大小]' || key === '游戏名' || key === '游戏名称' || key === '标题') {
+                if (value && !mapped.title) {
+                    mapped.title = value;
+                }
+                continue;
+            }
             
-            mapped._rawData[key] = allData[key];
+            if (key === '评分' || key === '分数') {
+                const val = parseFloat(value);
+                if (!isNaN(val)) {
+                    mapped.rating = val;
+                }
+                continue;
+            }
+            
+            if (key === '下载量' || key === '下载') {
+                if (value) {
+                    mapped.downloads = value;
+                }
+                continue;
+            }
+            
+            if (key === '介绍' || key === '描述' || key === '简介') {
+                if (value && !mapped.description) {
+                    mapped.description = value;
+                }
+                continue;
+            }
+            
+            if (key === '图标') {
+                if (value) {
+                    mapped.icon = value;
+                }
+                continue;
+            }
+            
+            if (isPrivateField(key)) {
+                mapped.privateData[key] = value;
+                continue;
+            }
+            
+            mapped._rawData[key] = value;
             if (!mapped._rawFields.includes(key)) {
                 mapped._rawFields.push(key);
             }
-            
-            if (key.includes('文件ID') || keyClean.includes('fileid')) {
-                mapped._rawFields = mapped._rawFields.filter(f => f !== key);
-                mapped._rawFields.unshift(key);
-                continue;
-            }
-            
-            if (['id', 'icon', 'category', 'rating', 'downloads', 'description', 'updateDate', 'isFavorite', '_rawFields', '_rawData', 'title', 'privateData', '_fieldMap'].includes(key)) {
-                continue;
-            }
-            
-            let mappedKey = fieldMap[key];
-            
-            if (!mappedKey) {
-                for (const originalKey in fieldMap) {
-                    const originalClean = originalKey.toLowerCase().replace(/[\[\]（）\(\)\s]/g, '');
-                    if (keyClean.includes(originalClean) || originalClean.includes(keyClean)) {
-                        mappedKey = fieldMap[originalKey];
-                        break;
-                    }
-                }
-            }
-            
-            if (mappedKey === 'title' && !mapped.title) {
-                mapped.title = allData[key];
-            } else if (mappedKey === 'rating' && !mapped.rating) {
-                const val = parseFloat(allData[key]);
-                mapped.rating = isNaN(val) ? 0 : val;
-            } else if (mappedKey === 'icon' && mapped.icon === '🎮') {
-                mapped.icon = allData[key];
-            } else if (mappedKey === 'downloads' && mapped.downloads === '-') {
-                mapped.downloads = allData[key];
-            } else if (mappedKey === 'description' && !mapped.description) {
-                mapped.description = allData[key];
-            }
         }
-
+        
         if (!mapped.title) {
             mapped.title = '未命名';
         }
-
-        if (!mapped.category) {
-            mapped.category = '其他';
-            console.log('⚠️ 未找到分类字段，使用默认值: 其他');
+        
+        if (mapped._rawFields.length > 0) {
+            const fileIdField = mapped._rawFields.find(f => f.includes('文件ID'));
+            if (fileIdField) {
+                mapped._rawFields = mapped._rawFields.filter(f => f !== fileIdField);
+                mapped._rawFields.unshift(fileIdField);
+            }
         }
-
-        console.log('最终分类:', mapped.category);
+        
+        if (Object.keys(mapped.privateData).length === 0) {
+            delete mapped.privateData;
+        }
+        
         return mapped;
     },
 

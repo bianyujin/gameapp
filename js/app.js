@@ -420,6 +420,11 @@ const App = {
         const total = games.length;
         
         const tbody = document.getElementById('tableBody');
+        if (!tbody) {
+            console.warn('tableBody元素不存在');
+            return;
+        }
+        
         tbody.innerHTML = games.map((game, index) => {
             const gameIndex = this.games.indexOf(game);
             return `
@@ -437,8 +442,10 @@ const App = {
             </div>
         `}).join('');
 
-        document.getElementById('tableInfo').textContent = 
-            `共 ${total} 条`;
+        const tableInfo = document.getElementById('tableInfo');
+        if (tableInfo) {
+            tableInfo.textContent = `共 ${total} 条`;
+        }
         
         this.updateProfileCounts();
     },
