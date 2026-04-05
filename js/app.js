@@ -976,32 +976,65 @@ const App = {
 
     sortGames(column, direction) {
         this.games.sort((a, b) => {
-            let valA = a[column];
-            let valB = b[column];
+            let valA, valB;
             
-            if (column === 'updateDate' || column === 'createDate') {
-                valA = new Date(valA || 0);
-                valB = new Date(valB || 0);
-            } else if (typeof valA === 'string') {
-                valA = valA.toLowerCase();
-                valB = valB.toLowerCase();
-            } else if (typeof valA === 'number') {
-                // 数字直接比较
+            if (column === 'id') {
+                valA = a._rawData?.['文件ID'] || a.id || '';
+                valB = b._rawData?.['文件ID'] || b.id || '';
+                const numA = parseFloat(String(valA).replace(/[^0-9.]/g, ''));
+                const numB = parseFloat(String(valB).replace(/[^0-9.]/g, ''));
+                if (!isNaN(numA) && !isNaN(numB)) {
+                    return direction === 'asc' ? numA - numB : numB - numA;
+                }
+                valA = String(valA).toLowerCase();
+                valB = String(valB).toLowerCase();
+            } else if (column === 'updateDate') {
+                valA = a._rawData?.['最后修改时间'] || a.updateDate || '';
+                valB = b._rawData?.['最后修改时间'] || b.updateDate || '';
+                valA = this.parseChineseDate(valA);
+                valB = this.parseChineseDate(valB);
+            } else if (column === 'createDate') {
+                valA = a._rawData?.['创建时间'] || '';
+                valB = b._rawData?.['创建时间'] || '';
+                valA = this.parseChineseDate(valA);
+                valB = this.parseChineseDate(valB);
+            } else if (column === 'title') {
+                valA = (a.title || '').toLowerCase();
+                valB = (b.title || '').toLowerCase();
+            } else if (column === 'rating') {
+                valA = parseFloat(a.rating) || 0;
+                valB = parseFloat(b.rating) || 0;
             } else {
-                valA = valA || 0;
-                valB = valB || 0;
+                valA = a[column] || 0;
+                valB = b[column] || 0;
             }
             
-            if (direction === 'asc') {
-                return valA > valB ? 1 : -1;
-            } else {
-                return valA < valB ? 1 : -1;
-            }
+            if (valA < valB) return direction === 'asc' ? -1 : 1;
+            if (valA > valB) return direction === 'asc' ? 1 : -1;
+            return 0;
         });
         
         this.closeSortModal();
         this.renderTable();
         this.showToast('排序完成');
+    },
+
+    parseChineseDate(dateStr) {
+        if (!dateStr) return new Date(0);
+        if (dateStr instanceof Date) return dateStr;
+        
+        const str = String(dateStr);
+        const match = str.match(/(\d{4})年(\d{1,2})月(\d{1,2})日\s*(\d{1,2}):(\d{1,2})/);
+        if (match) {
+            return new Date(parseInt(match[1]), parseInt(match[2]) - 1, parseInt(match[3]), parseInt(match[4]), parseInt(match[5]));
+        }
+        
+        const isoMatch = str.match(/(\d{4})-(\d{2})-(\d{2})/);
+        if (isoMatch) {
+            return new Date(str);
+        }
+        
+        return new Date(0);
     },
 
     exportData() {
@@ -1351,6 +1384,7 @@ const App = {
 
     renderCategories() {
         const container = document.getElementById('homeCategories');
+        if (!container) return;
         container.innerHTML = this.categories.map(cat => `
             <div class="category-card" onclick="App.filterHomeCategory('${cat.name}')">
                 <div class="category-card-icon">${cat.icon}</div>
@@ -1360,6 +1394,9 @@ const App = {
     },
 
     renderHomeGames(query) {
+        const container = document.getElementById('homeGames');
+        if (!container) return;
+        
         let games = this.games.slice(0, 6);
         if (query) {
             const q = query.toLowerCase();
@@ -1369,7 +1406,6 @@ const App = {
             ).slice(0, 6);
         }
 
-        const container = document.getElementById('homeGames');
         container.innerHTML = games.map(game => `
             <div class="game-card" onclick="App.editGame(${game.id})">
                 <div class="game-cover">${game.icon}</div>
