@@ -42,39 +42,11 @@ const App = {
         this.checkGuideBanner();
         this.autoSync();
         this.checkForUpdates();
-        this.initHistory();
         
         const addGameFab = document.getElementById('addGameFab');
         if (addGameFab) {
             addGameFab.style.display = 'flex';
         }
-    },
-
-    initHistory() {
-        history.replaceState({ page: 'home', type: 'page' }, '');
-        
-        window.addEventListener('popstate', (e) => {
-            if (e.state) {
-                if (e.state.type === 'modal') {
-                    this.closeModalById(e.state.modalId);
-                } else if (e.state.type === 'page') {
-                    this.switchPageWithoutHistory(e.state.page);
-                }
-            }
-        });
-    },
-
-    pushPageHistory(page) {
-        history.pushState({ page: page, type: 'page' }, '');
-    },
-
-    pushModalHistory(modalId) {
-        history.pushState({ type: 'modal', modalId: modalId }, '');
-    },
-
-    closeModalById(modalId) {
-        const modal = document.getElementById(modalId);
-        if (modal) modal.remove();
     },
 
     checkGuideBanner() {
@@ -110,32 +82,6 @@ const App = {
                 console.log('自动同步失败:', e);
             }
         }
-    },
-
-    refreshPage() {
-        this.showToast('刷新中...');
-        this.tableState.sortColumn = 'updateDate';
-        this.tableState.sortDirection = 'desc';
-        this.tableState.currentPage = 1;
-        this.tableState.searchQuery = '';
-        this.tableState.filterCategories.clear();
-        this.tableState.minRating = 0;
-        this.tableState.maxRating = 5;
-        
-        const searchInput = document.getElementById('tableSearch');
-        if (searchInput) searchInput.value = '';
-        
-        this.games.sort((a, b) => {
-            const valA = a._rawData?.['最后修改时间'] || a.updateDate || '';
-            const valB = b._rawData?.['最后修改时间'] || b.updateDate || '';
-            const dateA = this.parseChineseDate(valA);
-            const dateB = this.parseChineseDate(valB);
-            return dateB - dateA;
-        });
-        
-        this.renderTable();
-        this.loadRandomImage();
-        this.showToast('刷新完成');
     },
 
     loadRandomImage() {
@@ -369,11 +315,6 @@ const App = {
     },
 
     switchPage(page) {
-        this.pushPageHistory(page);
-        this.switchPageWithoutHistory(page);
-    },
-
-    switchPageWithoutHistory(page) {
         this.currentPage = page;
 
         document.querySelectorAll('.nav-item').forEach(item => {
@@ -452,40 +393,61 @@ const App = {
             parseFloat(g.rating) <= this.tableState.maxRating
         );
 
+        if (this.tableState.sortColumn) {
+            games.sort((a, b) => {
+                let aVal = a[this.tableState.sortColumn];
+                let bVal = b[this.tableState.sortColumn];
+
+                if (this.tableState.sortColumn === 'rating') {
+                    aVal = parseFloat(aVal);
+                    bVal = parseFloat(bVal);
+                } else if (this.tableState.sortColumn === 'updateDate') {
+                    aVal = new Date(aVal);
+                    bVal = new Date(bVal);
+                }
+
+                if (aVal < bVal) return this.tableState.sortDirection === 'asc' ? -1 : 1;
+                if (aVal > bVal) return this.tableState.sortDirection === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+
         return games;
     },
 
     renderTable() {
         const games = this.getFilteredGames();
         const total = games.length;
-        
+        const start = (this.tableState.currentPage - 1) * this.tableState.pageSize;
+        const end = start + this.tableState.pageSize;
+        const pageGames = games.slice(start, end);
+        const totalPages = Math.ceil(total / this.tableState.pageSize);
+
         const tbody = document.getElementById('tableBody');
-        if (!tbody) {
-            console.warn('tableBody元素不存在');
-            return;
-        }
-        
-        tbody.innerHTML = games.map((game, index) => {
+        tbody.innerHTML = pageGames.map((game, index) => {
             const gameIndex = this.games.indexOf(game);
             return `
-            <div class="game-card" data-index="${gameIndex}" onclick="App.editGameByIndex(${gameIndex})">
-                <div class="game-cover">
-                    ${game.icon || '🎮'}
-                </div>
-                <div class="game-info">
-                    <div class="game-title">${game.title || '未命名'}</div>
-                    <div class="game-meta">
-                        <span class="game-category">${game.category || '其他'}</span>
-                        <span class="game-rating">⭐ ${game.rating || 0}</span>
+            <tr data-index="${gameIndex}" onclick="App.editGameByIndex(${gameIndex})" style="cursor: pointer;">
+                <td>
+                    <div class="table-icon">${game.icon || '🎮'}</div>
+                </td>
+                <td>${game.title || '未命名'}</td>
+                <td>${game.category || '其他'}</td>
+                <td>
+                    <span class="table-rating">⭐ ${game.rating || 0}</span>
+                </td>
+                <td>
+                    <div class="table-actions">
+                        <button class="table-action-btn" onclick="event.stopPropagation(); App.editGameByIndex(${gameIndex})">详情</button>
                     </div>
-                </div>
-            </div>
+                </td>
+            </tr>
         `}).join('');
 
-        const tableInfo = document.getElementById('tableInfo');
-        if (tableInfo) {
-            tableInfo.textContent = `共 ${total} 条`;
-        }
+        document.getElementById('tableInfo').textContent = 
+            `共 ${total} 条`;
+
+        this.renderPagination(totalPages);
         
         this.updateProfileCounts();
     },
@@ -538,7 +500,6 @@ const App = {
             </div>
         `;
         
-        this.pushModalHistory('editModal');
         document.body.insertAdjacentHTML('beforeend', modalHtml);
     },
 
@@ -651,42 +612,21 @@ const App = {
     openEditModal(game, index) {
         const rawFields = game._rawFields || Object.keys(game._rawData || {});
         
-        const isPrivateField = (key) => {
-            const privateKeywords = ['备注', '百度', '迅雷', 'UC', '预览', '排雷', '评价', '文件', '网盘', '磁链', '密码', '密钥', 'token', 'secret', 'private', '隐藏'];
-            return privateKeywords.some(kw => key.toLowerCase().includes(kw.toLowerCase()));
-        };
-        
-        const allPrivateFields = {};
-        if (game.privateData) {
-            Object.assign(allPrivateFields, game.privateData);
-        }
-        if (this.isAdmin && game._rawData) {
-            Object.keys(game._rawData).forEach(k => {
-                if (!allPrivateFields.hasOwnProperty(k) && isPrivateField(k)) {
-                    allPrivateFields[k] = game._rawData[k];
-                }
-            });
-        }
-        
-        const rawFieldsHtml = rawFields.map((k, i) => {
-            const isHidden = !this.isAdmin && isPrivateField(k);
-            if (isHidden) return '';
-            return `
-                <div class="form-group raw-field" data-field="${k}" data-index="${i}">
-                    <label class="form-label" style="display: flex; justify-content: space-between; align-items: center;">
-                        <span>${k}</span>
-                        <span style="display: flex; gap: 4px;">
-                            ${this.isAdmin ? `
-                                <button type="button" onclick="App.moveRawField(${i}, -1)" style="background: #334155; border: none; color: #94a3b8; cursor: pointer; padding: 4px 8px; border-radius: 4px; font-size: 12px;">↑</button>
-                                <button type="button" onclick="App.moveRawField(${i}, 1)" style="background: #334155; border: none; color: #94a3b8; cursor: pointer; padding: 4px 8px; border-radius: 4px; font-size: 12px;">↓</button>
-                            ` : ''}
-                            <button type="button" onclick="App.copyFieldText(this)" style="background: #334155; border: none; color: #94a3b8; cursor: pointer; padding: 4px 8px; border-radius: 4px; font-size: 12px;">复制</button>
-                        </span>
-                    </label>
-                    <div class="form-textarea raw-field-value" data-field="${k}" style="font-size: 13px; background: #0f172a; min-height: 40px; white-space: pre-wrap; word-break: break-all;">${String(game._rawData[k] || '-')}</div>
-                </div>
-            `;
-        }).join('');
+        const rawFieldsHtml = rawFields.map((k, i) => `
+            <div class="form-group raw-field" data-field="${k}" data-index="${i}">
+                <label class="form-label" style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>${k}</span>
+                    <span style="display: flex; gap: 4px;">
+                        ${this.isAdmin ? `
+                            <button type="button" onclick="App.moveRawField(${i}, -1)" style="background: #334155; border: none; color: #94a3b8; cursor: pointer; padding: 4px 8px; border-radius: 4px; font-size: 12px;">↑</button>
+                            <button type="button" onclick="App.moveRawField(${i}, 1)" style="background: #334155; border: none; color: #94a3b8; cursor: pointer; padding: 4px 8px; border-radius: 4px; font-size: 12px;">↓</button>
+                        ` : ''}
+                        <button type="button" onclick="App.copyFieldText(this)" style="background: #334155; border: none; color: #94a3b8; cursor: pointer; padding: 4px 8px; border-radius: 4px; font-size: 12px;">复制</button>
+                    </span>
+                </label>
+                <div class="form-textarea raw-field-value" data-field="${k}" style="font-size: 13px; background: #0f172a; min-height: 40px; white-space: pre-wrap; word-break: break-all;">${String(game._rawData[k] || '-')}</div>
+            </div>
+        `).join('');
 
         const modalHtml = `
             <div id="editModal" class="modal">
@@ -726,12 +666,12 @@ const App = {
                             <div class="form-textarea" style="background: #0f172a; min-height: 40px;">${game.description || '-'}</div>
                         </div>
                         
-                        ${this.isAdmin && allPrivateFields && Object.keys(allPrivateFields).length > 0 ? `
+                        ${game.privateData && Object.keys(game.privateData).length > 0 ? `
                             <div style="background: #422006; padding: 12px; border-radius: 8px; margin-bottom: 16px;">
                                 <label class="form-label" style="color: #f59e0b;">🔒 私有数据</label>
                                 <div style="font-size: 13px; color: #fcd34d;">
-                                    ${Object.keys(allPrivateFields).map(k => 
-                                        `<div style="margin-bottom: 4px;"><strong>${k}:</strong> ${String(allPrivateFields[k]).substring(0, 100)}</div>`
+                                    ${Object.keys(game.privateData).map(k => 
+                                        `<div style="margin-bottom: 4px;"><strong>${k}:</strong> ${String(game.privateData[k]).substring(0, 100)}</div>`
                                     ).join('')}
                                 </div>
                             </div>
@@ -740,7 +680,7 @@ const App = {
                         ${rawFields.length > 0 ? `
                             <div style="border-top: 1px solid #334155; padding-top: 16px; margin-top: 8px;">
                                 <label class="form-label" style="color: #94a3b8; margin-bottom: 12px;">
-                                    📝 自定义字段 (${rawFields.filter(k => this.isAdmin || !isPrivateField(k)).length}个) ${this.isAdmin ? '- 点击↑↓调整顺序' : ''}
+                                    📝 自定义字段 (${rawFields.length}个) ${this.isAdmin ? '- 点击↑↓调整顺序' : ''}
                                 </label>
                                 <div id="rawFieldsContainer">
                                     ${rawFieldsHtml}
@@ -1017,65 +957,32 @@ const App = {
 
     sortGames(column, direction) {
         this.games.sort((a, b) => {
-            let valA, valB;
+            let valA = a[column];
+            let valB = b[column];
             
-            if (column === 'id') {
-                valA = a._rawData?.['文件ID'] || a.id || '';
-                valB = b._rawData?.['文件ID'] || b.id || '';
-                const numA = parseFloat(String(valA).replace(/[^0-9.]/g, ''));
-                const numB = parseFloat(String(valB).replace(/[^0-9.]/g, ''));
-                if (!isNaN(numA) && !isNaN(numB)) {
-                    return direction === 'asc' ? numA - numB : numB - numA;
-                }
-                valA = String(valA).toLowerCase();
-                valB = String(valB).toLowerCase();
-            } else if (column === 'updateDate') {
-                valA = a._rawData?.['最后修改时间'] || a.updateDate || '';
-                valB = b._rawData?.['最后修改时间'] || b.updateDate || '';
-                valA = this.parseChineseDate(valA);
-                valB = this.parseChineseDate(valB);
-            } else if (column === 'createDate') {
-                valA = a._rawData?.['创建时间'] || '';
-                valB = b._rawData?.['创建时间'] || '';
-                valA = this.parseChineseDate(valA);
-                valB = this.parseChineseDate(valB);
-            } else if (column === 'title') {
-                valA = (a.title || '').toLowerCase();
-                valB = (b.title || '').toLowerCase();
-            } else if (column === 'rating') {
-                valA = parseFloat(a.rating) || 0;
-                valB = parseFloat(b.rating) || 0;
+            if (column === 'updateDate' || column === 'createDate') {
+                valA = new Date(valA || 0);
+                valB = new Date(valB || 0);
+            } else if (typeof valA === 'string') {
+                valA = valA.toLowerCase();
+                valB = valB.toLowerCase();
+            } else if (typeof valA === 'number') {
+                // 数字直接比较
             } else {
-                valA = a[column] || 0;
-                valB = b[column] || 0;
+                valA = valA || 0;
+                valB = valB || 0;
             }
             
-            if (valA < valB) return direction === 'asc' ? -1 : 1;
-            if (valA > valB) return direction === 'asc' ? 1 : -1;
-            return 0;
+            if (direction === 'asc') {
+                return valA > valB ? 1 : -1;
+            } else {
+                return valA < valB ? 1 : -1;
+            }
         });
         
         this.closeSortModal();
         this.renderTable();
         this.showToast('排序完成');
-    },
-
-    parseChineseDate(dateStr) {
-        if (!dateStr) return new Date(0);
-        if (dateStr instanceof Date) return dateStr;
-        
-        const str = String(dateStr);
-        const match = str.match(/(\d{4})年(\d{1,2})月(\d{1,2})日\s*(\d{1,2}):(\d{1,2})/);
-        if (match) {
-            return new Date(parseInt(match[1]), parseInt(match[2]) - 1, parseInt(match[3]), parseInt(match[4]), parseInt(match[5]));
-        }
-        
-        const isoMatch = str.match(/(\d{4})-(\d{2})-(\d{2})/);
-        if (isoMatch) {
-            return new Date(str);
-        }
-        
-        return new Date(0);
     },
 
     exportData() {
@@ -1425,7 +1332,6 @@ const App = {
 
     renderCategories() {
         const container = document.getElementById('homeCategories');
-        if (!container) return;
         container.innerHTML = this.categories.map(cat => `
             <div class="category-card" onclick="App.filterHomeCategory('${cat.name}')">
                 <div class="category-card-icon">${cat.icon}</div>
@@ -1435,9 +1341,6 @@ const App = {
     },
 
     renderHomeGames(query) {
-        const container = document.getElementById('homeGames');
-        if (!container) return;
-        
         let games = this.games.slice(0, 6);
         if (query) {
             const q = query.toLowerCase();
@@ -1447,6 +1350,7 @@ const App = {
             ).slice(0, 6);
         }
 
+        const container = document.getElementById('homeGames');
         container.innerHTML = games.map(game => `
             <div class="game-card" onclick="App.editGame(${game.id})">
                 <div class="game-cover">${game.icon}</div>
