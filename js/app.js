@@ -393,25 +393,6 @@ const App = {
             parseFloat(g.rating) <= this.tableState.maxRating
         );
 
-        if (this.tableState.sortColumn) {
-            games.sort((a, b) => {
-                let aVal = a[this.tableState.sortColumn];
-                let bVal = b[this.tableState.sortColumn];
-
-                if (this.tableState.sortColumn === 'rating') {
-                    aVal = parseFloat(aVal);
-                    bVal = parseFloat(bVal);
-                } else if (this.tableState.sortColumn === 'updateDate') {
-                    aVal = new Date(aVal);
-                    bVal = new Date(bVal);
-                }
-
-                if (aVal < bVal) return this.tableState.sortDirection === 'asc' ? -1 : 1;
-                if (aVal > bVal) return this.tableState.sortDirection === 'asc' ? 1 : -1;
-                return 0;
-            });
-        }
-
         return games;
     },
 

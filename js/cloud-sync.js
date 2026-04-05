@@ -312,17 +312,26 @@ const CloudSync = {
             privateData: {}
         };
         
-        const allData = {...game};
-        if (game._rawData) {
-            Object.assign(allData, game._rawData);
-        }
+        const processedKeys = new Set();
         
         if (game.privateData) {
             Object.assign(mapped.privateData, game.privateData);
+            Object.keys(game.privateData).forEach(k => processedKeys.add(k));
         }
+        
+        const allData = {};
+        if (game._rawData) {
+            Object.assign(allData, game._rawData);
+        }
+        Object.keys(game).forEach(key => {
+            if (!internalFields.includes(key) && !game._rawData?.hasOwnProperty(key)) {
+                allData[key] = game[key];
+            }
+        });
         
         for (const key in allData) {
             if (internalFields.includes(key)) continue;
+            if (processedKeys.has(key)) continue;
             
             const value = allData[key];
             if (value === undefined || value === null) continue;
@@ -331,6 +340,7 @@ const CloudSync = {
                 if (value) {
                     mapped.category = value;
                 }
+                processedKeys.add(key);
                 continue;
             }
             
@@ -338,6 +348,7 @@ const CloudSync = {
                 if (value && !mapped.title) {
                     mapped.title = value;
                 }
+                processedKeys.add(key);
                 continue;
             }
             
@@ -346,6 +357,7 @@ const CloudSync = {
                 if (!isNaN(val)) {
                     mapped.rating = val;
                 }
+                processedKeys.add(key);
                 continue;
             }
             
@@ -353,6 +365,7 @@ const CloudSync = {
                 if (value) {
                     mapped.downloads = value;
                 }
+                processedKeys.add(key);
                 continue;
             }
             
@@ -360,6 +373,7 @@ const CloudSync = {
                 if (value && !mapped.description) {
                     mapped.description = value;
                 }
+                processedKeys.add(key);
                 continue;
             }
             
@@ -367,11 +381,13 @@ const CloudSync = {
                 if (value) {
                     mapped.icon = value;
                 }
+                processedKeys.add(key);
                 continue;
             }
             
             if (isPrivateField(key)) {
                 mapped.privateData[key] = value;
+                processedKeys.add(key);
                 continue;
             }
             
@@ -379,19 +395,33 @@ const CloudSync = {
             if (!mapped._rawFields.includes(key)) {
                 mapped._rawFields.push(key);
             }
+            processedKeys.add(key);
         }
         
         if (!mapped.title) {
             mapped.title = '未命名';
         }
         
-        if (mapped._rawFields.length > 0) {
-            const fileIdField = mapped._rawFields.find(f => f.includes('文件ID'));
-            if (fileIdField) {
-                mapped._rawFields = mapped._rawFields.filter(f => f !== fileIdField);
-                mapped._rawFields.unshift(fileIdField);
-            }
-        }
+        const defaultFieldOrder = [
+            '文件ID', '排雷|评价', '备注', '预览', '百度', '迅雷', 'UC',
+            '评级', '评级（成品级别）评分105- X          90-100 SSS           75-85 SS             60-70 S         45-55A     25-40B',
+            '剧情有无代入感10分，实用度如何，20分好不好冲？（30分）',
+            '画风立绘建模如何？10分。动态？10分。cg质量？10分（30分）',
+            'CV质量10分，音声10分（20分）',
+            '游戏性|玩法，好不好玩？（15分）',
+            '内容cg丰富度（15分）',
+            '修正分，bug过多，挤牙膏，无意义刷量强行延长游玩时间+反作弊',
+            '封面', '攻略', 'DL号|社团|作者', '最后修改时间', '创建时间'
+        ];
+        
+        mapped._rawFields.sort((a, b) => {
+            const ia = defaultFieldOrder.indexOf(a);
+            const ib = defaultFieldOrder.indexOf(b);
+            if (ia === -1 && ib === -1) return a.localeCompare(b, 'zh-CN');
+            if (ia === -1) return 1;
+            if (ib === -1) return -1;
+            return ia - ib;
+        });
         
         if (Object.keys(mapped.privateData).length === 0) {
             delete mapped.privateData;
