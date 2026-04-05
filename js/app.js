@@ -17,16 +17,15 @@ const App = {
     currentPage: 'home',
     tableTab: 'all',
     tableState: {
-        sortColumn: null,
+        sortColumn: 'updateDate',
         sortDirection: 'desc',
         currentPage: 1,
-        pageSize: 6,
+        pageSize: 5,
         searchQuery: '',
         selectedItems: [],
         filterCategories: new Set(),
         minRating: 0,
-        maxRating: 5,
-        isRandomSorted: false
+        maxRating: 5
     },
     carouselIndex: 0,
     carouselInterval: null,
@@ -40,10 +39,48 @@ const App = {
         this.render();
         this.startCarousel();
         this.loadRandomImage();
+        this.checkGuideBanner();
+        this.autoSync();
+        this.checkForUpdates();
         
         const addGameFab = document.getElementById('addGameFab');
         if (addGameFab) {
             addGameFab.style.display = 'flex';
+        }
+    },
+
+    checkGuideBanner() {
+        const hasSynced = localStorage.getItem('gamehub_has_synced');
+        const guideBanner = document.getElementById('guideBanner');
+        
+        if (!hasSynced && guideBanner) {
+            guideBanner.style.display = 'block';
+        }
+    },
+
+    hideGuideBanner() {
+        const guideBanner = document.getElementById('guideBanner');
+        if (guideBanner) {
+            guideBanner.style.display = 'none';
+        }
+    },
+
+    async autoSync() {
+        const lastSyncTime = localStorage.getItem('gamehub_last_sync_time');
+        const now = Date.now();
+        const oneHour = 60 * 60 * 1000;
+        
+        if (!lastSyncTime || (now - parseInt(lastSyncTime)) > oneHour) {
+            console.log('自动同步开始...');
+            try {
+                await CloudSync.syncFromCloud();
+                localStorage.setItem('gamehub_has_synced', 'true');
+                localStorage.setItem('gamehub_last_sync_time', now.toString());
+                this.hideGuideBanner();
+                console.log('自动同步完成');
+            } catch (e) {
+                console.log('自动同步失败:', e);
+            }
         }
     },
 
@@ -219,7 +256,12 @@ const App = {
             });
         }
 
-
+        const homeSearch = document.getElementById('homeSearch');
+        if (homeSearch) {
+            homeSearch.addEventListener('input', (e) => {
+                this.renderHomeGames(e.target.value);
+            });
+        }
 
         const clearCacheBtn = document.getElementById('clearCacheBtn');
         if (clearCacheBtn) {
@@ -290,11 +332,6 @@ const App = {
         };
         document.getElementById('headerTitle').textContent = titles[page];
 
-        const addGameFab = document.getElementById('addGameFab');
-        if (addGameFab) {
-            addGameFab.style.display = 'flex';
-        }
-
         if (page === 'table') {
             this.renderTable();
         }
@@ -356,10 +393,6 @@ const App = {
             parseFloat(g.rating) <= this.tableState.maxRating
         );
 
-        if (this.tableState.isRandomSorted) {
-            return games;
-        }
-
         if (this.tableState.sortColumn) {
             games.sort((a, b) => {
                 let aVal = a[this.tableState.sortColumn];
@@ -371,27 +404,11 @@ const App = {
                 } else if (this.tableState.sortColumn === 'updateDate') {
                     aVal = new Date(aVal);
                     bVal = new Date(bVal);
-                } else if (this.tableState.sortColumn === 'id') {
-                    aVal = String(aVal || '');
-                    bVal = String(bVal || '');
                 }
 
                 if (aVal < bVal) return this.tableState.sortDirection === 'asc' ? -1 : 1;
                 if (aVal > bVal) return this.tableState.sortDirection === 'asc' ? 1 : -1;
                 return 0;
-            });
-        } else {
-            games.sort((a, b) => {
-                const aDate = new Date(a.updateDate || 0);
-                const bDate = new Date(b.updateDate || 0);
-                
-                if (aDate.getTime() !== bDate.getTime()) {
-                    return aDate - bDate;
-                }
-                
-                const aId = String(a.id || '');
-                const bId = String(b.id || '');
-                return aId.localeCompare(bId);
             });
         }
 
@@ -401,25 +418,36 @@ const App = {
     renderTable() {
         const games = this.getFilteredGames();
         const total = games.length;
+        const start = (this.tableState.currentPage - 1) * this.tableState.pageSize;
+        const end = start + this.tableState.pageSize;
+        const pageGames = games.slice(start, end);
+        const totalPages = Math.ceil(total / this.tableState.pageSize);
 
-        const container = document.getElementById('tableBody');
-        container.innerHTML = games.map((game, index) => {
+        const tbody = document.getElementById('tableBody');
+        tbody.innerHTML = pageGames.map((game, index) => {
             const gameIndex = this.games.indexOf(game);
             return `
-            <div class="game-card" onclick="App.editGameByIndex(${gameIndex})">
-                <div class="game-cover">${game.icon || '🎮'}</div>
-                <div class="game-info">
-                    <div class="game-title">${game.title || '未命名'}</div>
-                    <div class="game-meta">
-                        <span class="game-rating">⭐ ${game.rating || 0}</span>
-                        <span class="game-category">${game.category || '其他'}</span>
+            <tr data-index="${gameIndex}" onclick="App.editGameByIndex(${gameIndex})" style="cursor: pointer;">
+                <td>
+                    <div class="table-icon">${game.icon || '🎮'}</div>
+                </td>
+                <td>${game.title || '未命名'}</td>
+                <td>${game.category || '其他'}</td>
+                <td>
+                    <span class="table-rating">⭐ ${game.rating || 0}</span>
+                </td>
+                <td>
+                    <div class="table-actions">
+                        <button class="table-action-btn" onclick="event.stopPropagation(); App.editGameByIndex(${gameIndex})">详情</button>
                     </div>
-                </div>
-            </div>
+                </td>
+            </tr>
         `}).join('');
 
         document.getElementById('tableInfo').textContent = 
             `共 ${total} 条`;
+
+        this.renderPagination(totalPages);
         
         this.updateProfileCounts();
     },
@@ -582,112 +610,9 @@ const App = {
     },
 
     openEditModal(game, index) {
-        const allRawFields = game._rawFields || Object.keys(game._rawData || {});
-        const privateKeys = new Set(Object.keys(game.privateData || {}));
+        const rawFields = game._rawFields || Object.keys(game._rawData || {});
         
-        const privateFieldKeywords = [
-            '搜索', '更新日志', 'FB', '视频', '广告',
-            '分享', '下载', '链接', '密码', '私有',
-            '版本及更新时间', '版本及更新日志', '版本', '更新时间'
-        ];
-        
-        const mappedFields = new Set([
-            '游戏名', '游戏名称', '名称', '标题', '游戏标题', 'title',
-            '类型', '分类', '类别', 'category',
-            '图标', 'icon',
-            '评分', '分数', 'rating',
-            '下载量', '下载', 'downloads',
-            '介绍', '描述', '简介', 'description',
-            '社团', '开发商', '开发商/社团', 'developer',
-            '评价', '简评', 'review'
-        ]);
-        
-        const desiredOrder = [
-            { key: 'id', patterns: ['文件ID', 'fileid', '^id$'] },
-            { key: '备注', patterns: ['备注'] },
-            { key: '百度', patterns: ['百度'] },
-            { key: '迅雷', patterns: ['迅雷'] },
-            { key: 'UC', patterns: ['UC'] },
-            { key: '预览', patterns: ['预览'] },
-            { key: '排雷|评价', patterns: ['排雷|评价'] },
-            { key: '评级', patterns: ['评级'] },
-            { key: '评级（成品级别）', patterns: ['评级（成品级别）'] },
-            { key: '剧情有无代入感', patterns: ['剧情有无代入感'] },
-            { key: '实用度如何', patterns: ['实用度如何'] },
-            { key: '20分好不好冲', patterns: ['20分好不好冲'] },
-            { key: '画风立绘建模', patterns: ['画风立绘建模'] },
-            { key: 'CV质量', patterns: ['CV质量'] },
-            { key: '游戏性|玩法', patterns: ['游戏性|玩法'] },
-            { key: '内容cg丰富度', patterns: ['内容cg丰富度'] },
-            { key: '修正分', patterns: ['修正分'] },
-            { key: '封面', patterns: ['封面'] },
-            { key: '攻略', patterns: ['攻略'] },
-            { key: 'DL号|社团|作者', patterns: ['DL号|社团|作者'] },
-            { key: '最后修改时间', patterns: ['最后修改时间'] },
-            { key: '创建时间', patterns: ['创建时间'] }
-        ];
-        
-        const isPrivateField = (fieldName) => {
-            if (privateKeys.has(fieldName)) return true;
-            return privateFieldKeywords.some(keyword => 
-                fieldName.includes(keyword)
-            );
-        };
-        
-        const allPrivateFields = {};
-        if (game.privateData) {
-            Object.assign(allPrivateFields, game.privateData);
-        }
-        if (this.isAdmin && game._rawData) {
-            Object.keys(game._rawData).forEach(k => {
-                if (!allPrivateFields.hasOwnProperty(k) && isPrivateField(k)) {
-                    allPrivateFields[k] = game._rawData[k];
-                }
-            });
-        }
-        
-        let filteredFields = allRawFields.filter(k => {
-            if (!this.isAdmin && isPrivateField(k)) {
-                return false;
-            }
-            if (mappedFields.has(k)) {
-                return false;
-            }
-            if (isPrivateField(k)) {
-                return false;
-            }
-            const isGameName = k.includes('游戏名') || k.includes('游戏名称');
-            if (isGameName) {
-                return false;
-            }
-            return true;
-        });
-        
-        const orderedFields = [];
-        const usedFields = new Set();
-        
-        desiredOrder.forEach(({ key, patterns }) => {
-            const match = filteredFields.find(f => {
-                return patterns.some(p => {
-                    if (p.startsWith('^') && p.endsWith('$')) {
-                        return new RegExp(p, 'i').test(f);
-                    }
-                    return f.includes(p);
-                });
-            });
-            if (match && !usedFields.has(match)) {
-                orderedFields.push(match);
-                usedFields.add(match);
-            }
-        });
-        
-        filteredFields.forEach(f => {
-            if (!usedFields.has(f)) {
-                orderedFields.push(f);
-            }
-        });
-        
-        const rawFieldsHtml = orderedFields.map((k, i) => `
+        const rawFieldsHtml = rawFields.map((k, i) => `
             <div class="form-group raw-field" data-field="${k}" data-index="${i}">
                 <label class="form-label" style="display: flex; justify-content: space-between; align-items: center;">
                     <span>${k}</span>
@@ -741,21 +666,21 @@ const App = {
                             <div class="form-textarea" style="background: #0f172a; min-height: 40px;">${game.description || '-'}</div>
                         </div>
                         
-                        ${this.isAdmin && Object.keys(allPrivateFields).length > 0 ? `
+                        ${game.privateData && Object.keys(game.privateData).length > 0 ? `
                             <div style="background: #422006; padding: 12px; border-radius: 8px; margin-bottom: 16px;">
                                 <label class="form-label" style="color: #f59e0b;">🔒 私有数据</label>
                                 <div style="font-size: 13px; color: #fcd34d;">
-                                    ${Object.keys(allPrivateFields).map(k => 
-                                        `<div style="margin-bottom: 4px;"><strong>${k}:</strong> ${String(allPrivateFields[k]).substring(0, 100)}</div>`
+                                    ${Object.keys(game.privateData).map(k => 
+                                        `<div style="margin-bottom: 4px;"><strong>${k}:</strong> ${String(game.privateData[k]).substring(0, 100)}</div>`
                                     ).join('')}
                                 </div>
                             </div>
                         ` : ''}
                         
-                        ${orderedFields.length > 0 ? `
+                        ${rawFields.length > 0 ? `
                             <div style="border-top: 1px solid #334155; padding-top: 16px; margin-top: 8px;">
                                 <label class="form-label" style="color: #94a3b8; margin-bottom: 12px;">
-                                    📝 自定义字段 (${orderedFields.length}个) ${this.isAdmin ? '- 点击↑↓调整顺序' : ''}
+                                    📝 自定义字段 (${rawFields.length}个) ${this.isAdmin ? '- 点击↑↓调整顺序' : ''}
                                 </label>
                                 <div id="rawFieldsContainer">
                                     ${rawFieldsHtml}
@@ -1025,16 +950,12 @@ const App = {
             const j = Math.floor(Math.random() * (i + 1));
             [this.games[i], this.games[j]] = [this.games[j], this.games[i]];
         }
-        this.tableState.isRandomSorted = true;
-        this.tableState.sortColumn = null;
         this.closeSortModal();
         this.renderTable();
-        this.renderHomeGames(document.getElementById('homeSearch')?.value || '');
         this.showToast('随机排序完成');
     },
 
     sortGames(column, direction) {
-        this.tableState.isRandomSorted = false;
         this.games.sort((a, b) => {
             let valA = a[column];
             let valB = b[column];
@@ -1042,9 +963,6 @@ const App = {
             if (column === 'updateDate' || column === 'createDate') {
                 valA = new Date(valA || 0);
                 valB = new Date(valB || 0);
-            } else if (column === 'id') {
-                valA = String(valA || '');
-                valB = String(valB || '');
             } else if (typeof valA === 'string') {
                 valA = valA.toLowerCase();
                 valB = valB.toLowerCase();
@@ -1062,12 +980,8 @@ const App = {
             }
         });
         
-        this.tableState.sortColumn = column;
-        this.tableState.sortDirection = direction;
-        
         this.closeSortModal();
         this.renderTable();
-        this.renderHomeGames(document.getElementById('homeSearch')?.value || '');
         this.showToast('排序完成');
     },
 
@@ -1365,34 +1279,35 @@ const App = {
     render() {
         this.renderCarousel();
         this.renderCategories();
-        const homeGamesContainer = document.getElementById('homeGames');
-        if (homeGamesContainer) {
-            this.renderHomeGames('');
-        }
+        this.renderHomeGames('');
         this.renderTable();
     },
 
     renderCarousel() {
         const track = document.getElementById('carouselTrack');
         const dots = document.getElementById('carouselDots');
-        if (track && dots) {
-            track.innerHTML = this.carouselItems.map(item => `
-                <div class="carousel-item" style="background: linear-gradient(135deg, ${item.color}, #8b5cf6);">
-                    <div class="carousel-content">
-                        <h3>${item.title}</h3>
-                        <p>${item.subtitle}</p>
-                    </div>
+        
+        if (!track || !dots) return;
+        
+        track.innerHTML = this.carouselItems.map(item => `
+            <div class="carousel-item" style="background: linear-gradient(135deg, ${item.color}, #8b5cf6);">
+                <div class="carousel-content">
+                    <h3>${item.title}</h3>
+                    <p>${item.subtitle}</p>
                 </div>
-            `).join('');
+            </div>
+        `).join('');
 
-            dots.innerHTML = this.carouselItems.map((_, i) => `
-                <div class="carousel-dot ${i === 0 ? 'active' : ''}"
-                     onclick="App.goToCarousel(${i})"></div>
-            `).join('');
-        }
+        dots.innerHTML = this.carouselItems.map((_, i) => `
+            <div class="carousel-dot ${i === 0 ? 'active' : ''}"
+                 onclick="App.goToCarousel(${i})"></div>
+        `).join('');
     },
 
     startCarousel() {
+        const track = document.getElementById('carouselTrack');
+        if (!track) return;
+        
         this.carouselInterval = setInterval(() => {
             this.carouselIndex = (this.carouselIndex + 1) % this.carouselItems.length;
             this.updateCarousel();
@@ -1406,6 +1321,8 @@ const App = {
 
     updateCarousel() {
         const track = document.getElementById('carouselTrack');
+        if (!track) return;
+        
         track.style.transform = `translateX(-${this.carouselIndex * 100}%)`;
 
         document.querySelectorAll('.carousel-dot').forEach((dot, i) => {
@@ -1415,39 +1332,22 @@ const App = {
 
     renderCategories() {
         const container = document.getElementById('homeCategories');
-        if (container) {
-            container.innerHTML = this.categories.map(cat => `
-                <div class="category-card" onclick="App.filterHomeCategory('${cat.name}')">
-                    <div class="category-card-icon">${cat.icon}</div>
-                    <div class="category-card-name">${cat.name}</div>
-                </div>
-            `).join('');
-        }
+        container.innerHTML = this.categories.map(cat => `
+            <div class="category-card" onclick="App.filterHomeCategory('${cat.name}')">
+                <div class="category-card-icon">${cat.icon}</div>
+                <div class="category-card-name">${cat.name}</div>
+            </div>
+        `).join('');
     },
 
     renderHomeGames(query) {
-        let games = [...this.games];
+        let games = this.games.slice(0, 6);
         if (query) {
             const q = query.toLowerCase();
             games = this.games.filter(g => 
                 g.title.toLowerCase().includes(q) ||
                 g.category.toLowerCase().includes(q)
-            );
-        }
-
-        if (!this.tableState.isRandomSorted) {
-            games.sort((a, b) => {
-                const aDate = new Date(a.updateDate || 0);
-                const bDate = new Date(b.updateDate || 0);
-                
-                if (aDate.getTime() !== bDate.getTime()) {
-                    return aDate - bDate;
-                }
-                
-                const aId = String(a.id || '');
-                const bId = String(b.id || '');
-                return aId.localeCompare(bId);
-            });
+            ).slice(0, 6);
         }
 
         const container = document.getElementById('homeGames');
@@ -1457,7 +1357,6 @@ const App = {
                 <div class="game-info">
                     <div class="game-title">${game.title}</div>
                     <div class="game-meta">
-                        <span class="game-rating">⭐ ${game.rating || 0}</span>
                         <span class="game-category">${game.category}</span>
                     </div>
                 </div>
@@ -1498,6 +1397,132 @@ const App = {
         setTimeout(() => {
             toast.classList.add('hidden');
         }, 2500);
+    },
+
+    openBackupPasswordModal() {
+        const modalHtml = `
+            <div id="backupPasswordModal" class="modal">
+                <div class="modal-backdrop" onclick="App.closeBackupPasswordModal()"></div>
+                <div class="modal-content" style="max-width: 350px;">
+                    <div class="modal-header">
+                        <h3 class="modal-title">请输入密码</h3>
+                        <button class="close-btn" onclick="App.closeBackupPasswordModal()">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label class="form-label">访问密码</label>
+                            <input type="password" id="backupPasswordInput" class="form-input" placeholder="请输入密码" onkeypress="if(event.key==='Enter')App.verifyBackupPassword()">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" onclick="App.closeBackupPasswordModal()">取消</button>
+                        <button class="btn btn-primary" onclick="App.verifyBackupPassword()">确认</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        setTimeout(() => document.getElementById('backupPasswordInput')?.focus(), 100);
+    },
+
+    closeBackupPasswordModal() {
+        const modal = document.getElementById('backupPasswordModal');
+        if (modal) modal.remove();
+    },
+
+    async verifyBackupPassword() {
+        const input = document.getElementById('backupPasswordInput');
+        const password = input?.value || '';
+        
+        if (password === 'BAYJ') {
+            this.closeBackupPasswordModal();
+            await CloudSync.loadCloudConfig();
+            let notionUrl = CloudSync.config.notionEmbedUrl || 'https://resonant-laser-29e.notion.site/ebd//30ad9616662180568b20d6d607924c76?v=30ad96166621802abfa8000cc45c28e6';
+            const iframe = document.getElementById('notionIframe');
+            if (iframe) {
+                iframe.src = notionUrl;
+            }
+            this.switchPage('notion');
+        } else {
+            this.showToast('密码错误');
+            input.value = '';
+            input.focus();
+        }
+    },
+
+    async checkForUpdates() {
+        const githubUrl = 'https://cdn.jsdelivr.net/gh/bianyujin/gameapp@v1.00/games.json';
+        const localVersion = localStorage.getItem('gamehub_local_data_version');
+        
+        try {
+            const response = await fetch(githubUrl, { method: 'HEAD' });
+            if (!response.ok) return;
+            
+            const lastModified = response.headers.get('Last-Modified');
+            const etag = response.headers.get('ETag');
+            const remoteVersion = lastModified || etag || Date.now().toString();
+            
+            const lastCheckTime = localStorage.getItem('gamehub_last_update_check');
+            const now = Date.now();
+            
+            if (lastCheckTime && (now - parseInt(lastCheckTime)) < 3600000) {
+                return;
+            }
+            
+            localStorage.setItem('gamehub_last_update_check', now.toString());
+            
+            const saved = localStorage.getItem('gamehub_games');
+            if (!saved) {
+                this.showUpdatePrompt();
+                return;
+            }
+            
+            const localData = JSON.parse(saved);
+            if (!localData || localData.length === 0) {
+                this.showUpdatePrompt();
+                return;
+            }
+            
+            const response2 = await fetch(githubUrl);
+            if (!response2.ok) return;
+            
+            const remoteData = await response2.json();
+            if (remoteData && Array.isArray(remoteData) && remoteData.length !== localData.length) {
+                this.showUpdatePrompt();
+                return;
+            }
+            
+        } catch (e) {
+            console.log('检查更新失败:', e);
+        }
+    },
+
+    showUpdatePrompt() {
+        const modalHtml = `
+            <div id="updatePromptModal" class="modal">
+                <div class="modal-backdrop" onclick="App.closeUpdatePrompt()"></div>
+                <div class="modal-content" style="max-width: 350px;">
+                    <div class="modal-header">
+                        <h3 class="modal-title">发现新数据</h3>
+                        <button class="close-btn" onclick="App.closeUpdatePrompt()">&times;</button>
+                    </div>
+                    <div class="modal-body" style="text-align: center; padding: 20px;">
+                        <div style="font-size: 48px; margin-bottom: 16px;">🔄</div>
+                        <p style="color: #94a3b8; margin-bottom: 16px;">检测到 GitHub 有更新的游戏数据，是否立即同步？</p>
+                    </div>
+                    <div class="modal-footer" style="flex-direction: column; gap: 8px;">
+                        <button class="btn btn-primary" style="width: 100%;" onclick="App.closeUpdatePrompt(); CloudSync.syncFromCloud();">立即同步</button>
+                        <button class="btn btn-secondary" style="width: 100%;" onclick="App.closeUpdatePrompt()">稍后再说</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    },
+
+    closeUpdatePrompt() {
+        const modal = document.getElementById('updatePromptModal');
+        if (modal) modal.remove();
     }
 };
 

@@ -397,11 +397,16 @@ const CloudSync = {
                 continue;
             }
             
+            mapped[key] = allData[key];
+            
+            mapped._rawData[key] = allData[key];
+            if (!mapped._rawFields.includes(key)) {
+                mapped._rawFields.push(key);
+            }
+            
             if (key.includes('文件ID') || keyClean.includes('fileid')) {
-                mapped._rawData[key] = allData[key];
-                if (!mapped._rawFields.includes(key)) {
-                    mapped._rawFields.unshift(key);
-                }
+                mapped._rawFields = mapped._rawFields.filter(f => f !== key);
+                mapped._rawFields.unshift(key);
                 continue;
             }
             
