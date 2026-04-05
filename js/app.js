@@ -418,36 +418,27 @@ const App = {
     renderTable() {
         const games = this.getFilteredGames();
         const total = games.length;
-        const start = (this.tableState.currentPage - 1) * this.tableState.pageSize;
-        const end = start + this.tableState.pageSize;
-        const pageGames = games.slice(start, end);
-        const totalPages = Math.ceil(total / this.tableState.pageSize);
-
+        
         const tbody = document.getElementById('tableBody');
-        tbody.innerHTML = pageGames.map((game, index) => {
+        tbody.innerHTML = games.map((game, index) => {
             const gameIndex = this.games.indexOf(game);
             return `
-            <tr data-index="${gameIndex}" onclick="App.editGameByIndex(${gameIndex})" style="cursor: pointer;">
-                <td>
-                    <div class="table-icon">${game.icon || '🎮'}</div>
-                </td>
-                <td>${game.title || '未命名'}</td>
-                <td>${game.category || '其他'}</td>
-                <td>
-                    <span class="table-rating">⭐ ${game.rating || 0}</span>
-                </td>
-                <td>
-                    <div class="table-actions">
-                        <button class="table-action-btn" onclick="event.stopPropagation(); App.editGameByIndex(${gameIndex})">详情</button>
+            <div class="game-card" data-index="${gameIndex}" onclick="App.editGameByIndex(${gameIndex})">
+                <div class="game-cover">
+                    ${game.icon || '🎮'}
+                </div>
+                <div class="game-info">
+                    <div class="game-title">${game.title || '未命名'}</div>
+                    <div class="game-meta">
+                        <span class="game-category">${game.category || '其他'}</span>
+                        <span class="game-rating">⭐ ${game.rating || 0}</span>
                     </div>
-                </td>
-            </tr>
+                </div>
+            </div>
         `}).join('');
 
         document.getElementById('tableInfo').textContent = 
             `共 ${total} 条`;
-
-        this.renderPagination(totalPages);
         
         this.updateProfileCounts();
     },
@@ -612,21 +603,42 @@ const App = {
     openEditModal(game, index) {
         const rawFields = game._rawFields || Object.keys(game._rawData || {});
         
-        const rawFieldsHtml = rawFields.map((k, i) => `
-            <div class="form-group raw-field" data-field="${k}" data-index="${i}">
-                <label class="form-label" style="display: flex; justify-content: space-between; align-items: center;">
-                    <span>${k}</span>
-                    <span style="display: flex; gap: 4px;">
-                        ${this.isAdmin ? `
-                            <button type="button" onclick="App.moveRawField(${i}, -1)" style="background: #334155; border: none; color: #94a3b8; cursor: pointer; padding: 4px 8px; border-radius: 4px; font-size: 12px;">↑</button>
-                            <button type="button" onclick="App.moveRawField(${i}, 1)" style="background: #334155; border: none; color: #94a3b8; cursor: pointer; padding: 4px 8px; border-radius: 4px; font-size: 12px;">↓</button>
-                        ` : ''}
-                        <button type="button" onclick="App.copyFieldText(this)" style="background: #334155; border: none; color: #94a3b8; cursor: pointer; padding: 4px 8px; border-radius: 4px; font-size: 12px;">复制</button>
-                    </span>
-                </label>
-                <div class="form-textarea raw-field-value" data-field="${k}" style="font-size: 13px; background: #0f172a; min-height: 40px; white-space: pre-wrap; word-break: break-all;">${String(game._rawData[k] || '-')}</div>
-            </div>
-        `).join('');
+        const isPrivateField = (key) => {
+            const privateKeywords = ['备注', '百度', '迅雷', 'UC', '预览', '排雷', '评价', '文件', '网盘', '磁链', '密码', '密钥', 'token', 'secret', 'private', '隐藏'];
+            return privateKeywords.some(kw => key.toLowerCase().includes(kw.toLowerCase()));
+        };
+        
+        const allPrivateFields = {};
+        if (game.privateData) {
+            Object.assign(allPrivateFields, game.privateData);
+        }
+        if (this.isAdmin && game._rawData) {
+            Object.keys(game._rawData).forEach(k => {
+                if (!allPrivateFields.hasOwnProperty(k) && isPrivateField(k)) {
+                    allPrivateFields[k] = game._rawData[k];
+                }
+            });
+        }
+        
+        const rawFieldsHtml = rawFields.map((k, i) => {
+            const isHidden = !this.isAdmin && isPrivateField(k);
+            if (isHidden) return '';
+            return `
+                <div class="form-group raw-field" data-field="${k}" data-index="${i}">
+                    <label class="form-label" style="display: flex; justify-content: space-between; align-items: center;">
+                        <span>${k}</span>
+                        <span style="display: flex; gap: 4px;">
+                            ${this.isAdmin ? `
+                                <button type="button" onclick="App.moveRawField(${i}, -1)" style="background: #334155; border: none; color: #94a3b8; cursor: pointer; padding: 4px 8px; border-radius: 4px; font-size: 12px;">↑</button>
+                                <button type="button" onclick="App.moveRawField(${i}, 1)" style="background: #334155; border: none; color: #94a3b8; cursor: pointer; padding: 4px 8px; border-radius: 4px; font-size: 12px;">↓</button>
+                            ` : ''}
+                            <button type="button" onclick="App.copyFieldText(this)" style="background: #334155; border: none; color: #94a3b8; cursor: pointer; padding: 4px 8px; border-radius: 4px; font-size: 12px;">复制</button>
+                        </span>
+                    </label>
+                    <div class="form-textarea raw-field-value" data-field="${k}" style="font-size: 13px; background: #0f172a; min-height: 40px; white-space: pre-wrap; word-break: break-all;">${String(game._rawData[k] || '-')}</div>
+                </div>
+            `;
+        }).join('');
 
         const modalHtml = `
             <div id="editModal" class="modal">
@@ -666,12 +678,12 @@ const App = {
                             <div class="form-textarea" style="background: #0f172a; min-height: 40px;">${game.description || '-'}</div>
                         </div>
                         
-                        ${game.privateData && Object.keys(game.privateData).length > 0 ? `
+                        ${this.isAdmin && allPrivateFields && Object.keys(allPrivateFields).length > 0 ? `
                             <div style="background: #422006; padding: 12px; border-radius: 8px; margin-bottom: 16px;">
                                 <label class="form-label" style="color: #f59e0b;">🔒 私有数据</label>
                                 <div style="font-size: 13px; color: #fcd34d;">
-                                    ${Object.keys(game.privateData).map(k => 
-                                        `<div style="margin-bottom: 4px;"><strong>${k}:</strong> ${String(game.privateData[k]).substring(0, 100)}</div>`
+                                    ${Object.keys(allPrivateFields).map(k => 
+                                        `<div style="margin-bottom: 4px;"><strong>${k}:</strong> ${String(allPrivateFields[k]).substring(0, 100)}</div>`
                                     ).join('')}
                                 </div>
                             </div>
@@ -680,7 +692,7 @@ const App = {
                         ${rawFields.length > 0 ? `
                             <div style="border-top: 1px solid #334155; padding-top: 16px; margin-top: 8px;">
                                 <label class="form-label" style="color: #94a3b8; margin-bottom: 12px;">
-                                    📝 自定义字段 (${rawFields.length}个) ${this.isAdmin ? '- 点击↑↓调整顺序' : ''}
+                                    📝 自定义字段 (${rawFields.filter(k => this.isAdmin || !isPrivateField(k)).length}个) ${this.isAdmin ? '- 点击↑↓调整顺序' : ''}
                                 </label>
                                 <div id="rawFieldsContainer">
                                     ${rawFieldsHtml}

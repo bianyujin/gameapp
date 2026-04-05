@@ -21,6 +21,18 @@
                 <div class="section-header">
                     <h2 class="section-title">首页</h2>
                 </div>
+                <div class="guide-banner" id="guideBanner" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px 20px; border-radius: 12px; margin-bottom: 20px; display: none;">
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <span style="font-size: 24px;">📖</span>
+                            <div>
+                                <div style="font-weight: 600; color: white; font-size: 14px;">欢迎来到 GAMEACG</div>
+                                <div style="color: rgba(255,255,255,0.9); font-size: 12px; margin-top: 4px;">首次使用需要在【我的】页面手动同步数据</div>
+                            </div>
+                        </div>
+                        <button onclick="App.hideGuideBanner()" style="background: rgba(255,255,255,0.2); border: none; color: white; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;">知道了</button>
+                    </div>
+                </div>
                 <div class="random-image-section">
                     <div class="random-image-container" id="randomImageContainer">
                         <img id="randomImage" src="" alt="随机图片" style="display: none;">
@@ -200,15 +212,7 @@
             const notionBackupBtn = document.getElementById('notionBackupBtn');
             if (notionBackupBtn) {
                 notionBackupBtn.addEventListener('click', async () => {
-                    await CloudSync.loadCloudConfig();
-                    let notionUrl = CloudSync.config.notionEmbedUrl || '';
-                    const iframe = document.getElementById('notionIframe');
-                    if (iframe && notionUrl) {
-                        iframe.src = notionUrl;
-                    }
-                    if (App && App.switchPage) {
-                        App.switchPage('notion');
-                    }
+                    App.openBackupPasswordModal();
                 });
             }
             
@@ -249,10 +253,12 @@
             if (userLoginBtn) {
                 userLoginBtn.addEventListener('click', () => {
                     if (ReviewSystem.isLoggedIn()) {
-                        localStorage.removeItem('gamehub_current_user');
-                        ReviewSystem.currentUser = null;
-                        App.showToast('已退出登录');
-                        location.reload();
+                        if (confirm('确定要退出登录吗？')) {
+                            localStorage.removeItem('gamehub_current_user');
+                            ReviewSystem.currentUser = null;
+                            App.showToast('已退出登录');
+                            location.reload();
+                        }
                     } else {
                         ReviewSystem.openUserLogin();
                     }
