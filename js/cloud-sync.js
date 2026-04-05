@@ -312,27 +312,22 @@ const CloudSync = {
             privateData: {}
         };
         
-        const processedKeys = new Set();
-        
         if (game.privateData) {
             Object.assign(mapped.privateData, game.privateData);
-            Object.keys(game.privateData).forEach(k => processedKeys.add(k));
         }
         
         const allData = {};
-        if (game._rawData) {
+        if (game._rawData && Object.keys(game._rawData).length > 0) {
             Object.assign(allData, game._rawData);
+        } else {
+            Object.keys(game).forEach(key => {
+                if (!internalFields.includes(key)) {
+                    allData[key] = game[key];
+                }
+            });
         }
-        Object.keys(game).forEach(key => {
-            if (!internalFields.includes(key) && !game._rawData?.hasOwnProperty(key)) {
-                allData[key] = game[key];
-            }
-        });
         
         for (const key in allData) {
-            if (internalFields.includes(key)) continue;
-            if (processedKeys.has(key)) continue;
-            
             const value = allData[key];
             if (value === undefined || value === null) continue;
             
@@ -340,7 +335,6 @@ const CloudSync = {
                 if (value) {
                     mapped.category = value;
                 }
-                processedKeys.add(key);
                 continue;
             }
             
@@ -348,7 +342,6 @@ const CloudSync = {
                 if (value && !mapped.title) {
                     mapped.title = value;
                 }
-                processedKeys.add(key);
                 continue;
             }
             
@@ -357,7 +350,6 @@ const CloudSync = {
                 if (!isNaN(val)) {
                     mapped.rating = val;
                 }
-                processedKeys.add(key);
                 continue;
             }
             
@@ -365,7 +357,6 @@ const CloudSync = {
                 if (value) {
                     mapped.downloads = value;
                 }
-                processedKeys.add(key);
                 continue;
             }
             
@@ -373,7 +364,6 @@ const CloudSync = {
                 if (value && !mapped.description) {
                     mapped.description = value;
                 }
-                processedKeys.add(key);
                 continue;
             }
             
@@ -381,13 +371,11 @@ const CloudSync = {
                 if (value) {
                     mapped.icon = value;
                 }
-                processedKeys.add(key);
                 continue;
             }
             
             if (isPrivateField(key)) {
                 mapped.privateData[key] = value;
-                processedKeys.add(key);
                 continue;
             }
             
@@ -395,7 +383,6 @@ const CloudSync = {
             if (!mapped._rawFields.includes(key)) {
                 mapped._rawFields.push(key);
             }
-            processedKeys.add(key);
         }
         
         if (!mapped.title) {

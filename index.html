@@ -24,7 +24,7 @@
                             <span style="font-size: 24px;">📖</span>
                             <div>
                                 <div style="font-weight: 600; color: white; font-size: 14px;">欢迎来到 GAMEACG</div>
-                                <div style="color: rgba(255,255,255,0.9); font-size: 12px; margin-top: 4px;">首次使用需要在【我的】页面手动同步数据</div>
+                                <div style="color: rgba(255,255,255,0.9); font-size: 12px; margin-top: 4px;">首次使用需要在【我的】页面手动同步数据。当前还在建造中，可能存在bug，有问题可以公众号反馈或QQ反馈。</div>
                             </div>
                         </div>
                         <button onclick="App.hideGuideBanner()" style="background: rgba(255,255,255,0.2); border: none; color: white; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;">知道了</button>
@@ -181,7 +181,7 @@
 
     <div id="toast" class="toast hidden"></div>
 
-    <button class="add-game-fab" id="addGameFab" onclick="App.loadRandomImage()" title="刷新图片">🔄</button>
+    <button class="add-game-fab" id="addGameFab" onclick="App.refreshPage()" title="刷新">🔄</button>
 
     <script src="js/app.js"></script>
     <script src="js/cloud-sync.js"></script>
@@ -269,13 +269,8 @@
                 if (userLoginBtn) userLoginBtn.textContent = '退出';
             }
             
-            if (AdminSystem.config.isAdmin) {
-                const addGameFab = document.getElementById('addGameFab');
-                if (addGameFab) addGameFab.style.display = 'flex';
-            } else {
-                const addGameFab = document.getElementById('addGameFab');
-                if (addGameFab) addGameFab.style.display = 'none';
-            }
+            const addGameFab = document.getElementById('addGameFab');
+            if (addGameFab) addGameFab.style.display = 'flex';
         });
     </script>
 </body>

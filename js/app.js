@@ -42,11 +42,39 @@ const App = {
         this.checkGuideBanner();
         this.autoSync();
         this.checkForUpdates();
+        this.initHistory();
         
         const addGameFab = document.getElementById('addGameFab');
         if (addGameFab) {
             addGameFab.style.display = 'flex';
         }
+    },
+
+    initHistory() {
+        history.replaceState({ page: 'home', type: 'page' }, '');
+        
+        window.addEventListener('popstate', (e) => {
+            if (e.state) {
+                if (e.state.type === 'modal') {
+                    this.closeModalById(e.state.modalId);
+                } else if (e.state.type === 'page') {
+                    this.switchPageWithoutHistory(e.state.page);
+                }
+            }
+        });
+    },
+
+    pushPageHistory(page) {
+        history.pushState({ page: page, type: 'page' }, '');
+    },
+
+    pushModalHistory(modalId) {
+        history.pushState({ type: 'modal', modalId: modalId }, '');
+    },
+
+    closeModalById(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) modal.remove();
     },
 
     checkGuideBanner() {
@@ -82,6 +110,32 @@ const App = {
                 console.log('自动同步失败:', e);
             }
         }
+    },
+
+    refreshPage() {
+        this.showToast('刷新中...');
+        this.tableState.sortColumn = 'updateDate';
+        this.tableState.sortDirection = 'desc';
+        this.tableState.currentPage = 1;
+        this.tableState.searchQuery = '';
+        this.tableState.filterCategories.clear();
+        this.tableState.minRating = 0;
+        this.tableState.maxRating = 5;
+        
+        const searchInput = document.getElementById('tableSearch');
+        if (searchInput) searchInput.value = '';
+        
+        this.games.sort((a, b) => {
+            const valA = a._rawData?.['最后修改时间'] || a.updateDate || '';
+            const valB = b._rawData?.['最后修改时间'] || b.updateDate || '';
+            const dateA = this.parseChineseDate(valA);
+            const dateB = this.parseChineseDate(valB);
+            return dateB - dateA;
+        });
+        
+        this.renderTable();
+        this.loadRandomImage();
+        this.showToast('刷新完成');
     },
 
     loadRandomImage() {
@@ -315,6 +369,11 @@ const App = {
     },
 
     switchPage(page) {
+        this.pushPageHistory(page);
+        this.switchPageWithoutHistory(page);
+    },
+
+    switchPageWithoutHistory(page) {
         this.currentPage = page;
 
         document.querySelectorAll('.nav-item').forEach(item => {
@@ -479,6 +538,7 @@ const App = {
             </div>
         `;
         
+        this.pushModalHistory('editModal');
         document.body.insertAdjacentHTML('beforeend', modalHtml);
     },
 
