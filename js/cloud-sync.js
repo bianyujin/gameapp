@@ -290,133 +290,132 @@ const CloudSync = {
     },
 
     mapGameFields(game) {
-        const fieldMap = {
-            '游戏名': 'title',
-            '游戏名称': 'title',
-            '名称': 'title',
-            '标题': 'title',
-            '游戏标题': 'title',
-            'title': 'title',
-            '图标': 'icon',
-            'icon': 'icon',
-            '类型': 'category',
-            '分类': 'category',
-            '类别': 'category',
-            'category': 'category',
-            '评分': 'rating',
-            '分数': 'rating',
-            'rating': 'rating',
-            '下载量': 'downloads',
-            '下载': 'downloads',
-            'downloads': 'downloads',
-            '介绍': 'description',
-            '描述': 'description',
-            '简介': 'description',
-            'description': 'description',
-            '社团': 'developer',
-            '开发商': 'developer',
-            '开发商/社团': 'developer',
-            'developer': 'developer',
-            '评价': 'review',
-            '简评': 'review',
-            'review': 'review'
+        const internalFields = ['id', 'icon', 'category', 'rating', 'downloads', 'description', 'updateDate', 'isFavorite', '_rawFields', '_rawData', 'title', 'privateData', '_fieldMap'];
+        
+        const privateKeywords = ['搜索', '更新日志', 'FB', '版本及更新时间', '视频', '备注', '百度', '迅雷', 'UC', '预览', '排雷', '评价', '文件', '网盘', '磁链', '密码', '密钥', 'token', 'secret', 'private', '隐藏'];
+        
+        const isPrivateField = (key) => {
+            return privateKeywords.some(kw => key.includes(kw));
         };
 
         const mapped = {
             id: game.id || Date.now() + Math.random(),
-            icon: game.icon || '🎮',
-            category: game.category || '其他',
-            rating: game.rating || 0,
-            downloads: game.downloads || '-',
-            description: game.description || '',
-            updateDate: game.updateDate ? new Date(game.updateDate) : new Date(),
-            isFavorite: game.isFavorite || false,
+            icon: '🎮',
+            category: '其他',
+            rating: 0,
+            downloads: '-',
+            description: '',
+            updateDate: new Date(),
+            isFavorite: false,
             _rawFields: [],
-            _rawData: {}
+            _rawData: {},
+            privateData: {}
         };
-
-        if (game.title) {
-            mapped.title = game.title;
-        }
-
+        
         if (game.privateData) {
-            mapped.privateData = game.privateData;
+            Object.assign(mapped.privateData, game.privateData);
         }
-
-        const fieldNameMap = game._fieldMap || {};
-
-        const rawData = game._rawData || {};
-        Object.keys(rawData).forEach(sanitizedKey => {
-            const originalKey = fieldNameMap[sanitizedKey] || sanitizedKey;
-            mapped._rawData[originalKey] = rawData[sanitizedKey];
-            if (!mapped._rawFields.includes(originalKey)) {
-                mapped._rawFields.push(originalKey);
-            }
-        });
-
-        const rawFieldsFromGame = game._rawFields || [];
-        rawFieldsFromGame.forEach(sanitizedKey => {
-            const originalKey = fieldNameMap[sanitizedKey] || sanitizedKey;
-            if (!mapped._rawFields.includes(originalKey)) {
-                mapped._rawFields.push(originalKey);
-            }
-        });
-
-        const allData = {...game, ...mapped._rawData};
-        const allKeys = Object.keys(allData);
-
-        if (!mapped.title) {
-            for (const key of allKeys) {
-                const keyClean = key.toLowerCase().replace(/[\[\]（）\(\)\s]/g, '');
-                if (keyClean.includes('游戏名') || keyClean.includes('游戏名称') || 
-                    keyClean.includes('名称') || keyClean.includes('标题') || 
-                    keyClean.includes('title')) {
-                    if (allData[key]) {
-                        mapped.title = allData[key];
-                        break;
-                    }
+        
+        const allData = {};
+        if (game._rawData && Object.keys(game._rawData).length > 0) {
+            Object.assign(allData, game._rawData);
+        } else {
+            Object.keys(game).forEach(key => {
+                if (!internalFields.includes(key)) {
+                    allData[key] = game[key];
                 }
-            }
+            });
         }
-
-        for (const key of allKeys) {
-            if (['id', 'icon', 'category', 'rating', 'downloads', 'description', 'updateDate', 'isFavorite', '_rawFields', '_rawData', 'title', 'privateData', '_fieldMap'].includes(key)) {
+        
+        for (const key in allData) {
+            const value = allData[key];
+            if (value === undefined || value === null) continue;
+            
+            const keyLower = key.toLowerCase().replace(/[\[\]（）\(\)\s|]/g, '');
+            
+            if (key === '类型' || key === '分类' || key === '类别' || keyLower === '类型') {
+                if (value) {
+                    mapped.category = value;
+                }
                 continue;
             }
             
-            let mappedKey = fieldMap[key];
-            
-            if (!mappedKey) {
-                const keyClean = key.toLowerCase().replace(/[\[\]（）\(\)\s]/g, '');
-                for (const originalKey in fieldMap) {
-                    const originalClean = originalKey.toLowerCase().replace(/[\[\]（）\(\)\s]/g, '');
-                    if (keyClean.includes(originalClean) || originalClean.includes(keyClean)) {
-                        mappedKey = fieldMap[originalKey];
-                        break;
-                    }
+            if (keyLower.includes('游戏名') || key === '标题' || key === '游戏名称' || key === '游戏名') {
+                if (value && !mapped.title) {
+                    mapped.title = value;
                 }
+                continue;
             }
             
-            if (mappedKey === 'title' && !mapped.title) {
-                mapped.title = allData[key];
-            } else if (mappedKey === 'category' && !mapped.category) {
-                mapped.category = allData[key];
-            } else if (mappedKey === 'rating' && !mapped.rating) {
-                const val = parseFloat(allData[key]);
-                mapped.rating = isNaN(val) ? 0 : val;
-            } else if (mappedKey === 'icon' && mapped.icon === '🎮') {
-                mapped.icon = allData[key];
-            } else if (mappedKey === 'downloads' && mapped.downloads === '-') {
-                mapped.downloads = allData[key];
-            } else if (mappedKey === 'description' && !mapped.description) {
-                mapped.description = allData[key];
+            if (key === '评分' || key === '分数') {
+                const val = parseFloat(value);
+                if (!isNaN(val)) {
+                    mapped.rating = val;
+                }
+                continue;
+            }
+            
+            if (key === '下载量' || key === '下载') {
+                if (value) {
+                    mapped.downloads = value;
+                }
+                continue;
+            }
+            
+            if (key === '介绍' || key === '描述' || key === '简介') {
+                if (value && !mapped.description) {
+                    mapped.description = value;
+                }
+                continue;
+            }
+            
+            if (key === '图标') {
+                if (value) {
+                    mapped.icon = value;
+                }
+                continue;
+            }
+            
+            if (isPrivateField(key)) {
+                mapped.privateData[key] = value;
+                continue;
+            }
+            
+            mapped._rawData[key] = value;
+            if (!mapped._rawFields.includes(key)) {
+                mapped._rawFields.push(key);
             }
         }
-
+        
         if (!mapped.title) {
             mapped.title = '未命名';
         }
-
+        
+        const defaultFieldOrder = [
+            '文件ID', '排雷|评价', '排雷 评价', '备注', '预览', '百度', '迅雷', 'UC',
+            '评级', '评级（成品级别）评分105- X          90-100 SSS           75-85 SS             60-70 S         45-55A     25-40B',
+            '剧情有无代入感10分，实用度如何，20分好不好冲？（30分）',
+            '画风立绘建模如何？10分。动态？10分。cg质量？10分（30分）',
+            'CV质量10分，音声10分（20分）',
+            '游戏性|玩法，好不好玩？（15分）',
+            '内容cg丰富度（15分）',
+            '修正分，bug过多，挤牙膏，无意义刷量强行延长游玩时间+反作弊',
+            '封面', '攻略', 'DL号|社团|作者', '最后修改时间', '创建时间'
+        ];
+        
+        mapped._rawFields.sort((a, b) => {
+            const ia = defaultFieldOrder.findIndex(f => f === a || a.replace(/[\s|]/g, '') === f.replace(/[\s|]/g, ''));
+            const ib = defaultFieldOrder.findIndex(f => f === b || b.replace(/[\s|]/g, '') === f.replace(/[\s|]/g, ''));
+            if (ia === -1 && ib === -1) return a.localeCompare(b, 'zh-CN');
+            if (ia === -1) return 1;
+            if (ib === -1) return -1;
+            return ia - ib;
+        });
+        
+        if (Object.keys(mapped.privateData).length === 0) {
+            delete mapped.privateData;
+        }
+        
         return mapped;
     },
 
@@ -759,60 +758,23 @@ const CloudSync = {
         App.showToast('同步中...');
         console.log('=== syncFromCloud开始 ===');
         
-        const firebaseUrl = 'https://galgame-a5758-default-rtdb.asia-southeast1.firebasedatabase.app/games.json';
-        const githubUrl = 'https://cdn.jsdelivr.net/gh/bianyujin/gameapp@v1.00/games.json';
+        console.log('清除旧缓存...');
+        localStorage.removeItem('gamehub_games');
+        localStorage.removeItem('gamehub_cached_games');
+        localStorage.removeItem('gamehub_data_version');
         
-        this.config.gamesDataVersion = '2026032403';
-        this.config.localDataVersion = null;
-        console.log('GitHub CDN URL:', githubUrl);
-        console.log('Firebase URL (备用):', firebaseUrl);
-
+        await this.loadCloudConfig();
+        
+        if (!this.config.gamesDataUrl) {
+            throw new Error('请先在config.json中配置games_data_url');
+        }
+        
         try {
-            let success = false;
-            let error = null;
-            
-            try {
-                console.log('尝试从 GitHub CDN 同步...');
-                this.config.gamesDataUrl = githubUrl;
-                await this.syncFromGamesJson();
-                success = true;
-                console.log('GitHub CDN 同步成功!');
-            } catch (e) {
-                console.error('GitHub CDN 同步失败:', e);
-                error = e.message;
-                
-                try {
-                    console.log('GitHub CDN 失败，尝试 Firebase (备用)...');
-                    this.config.gamesDataUrl = firebaseUrl;
-                    await this.syncFromGamesJson();
-                    success = true;
-                    console.log('Firebase 同步成功!');
-                } catch (e2) {
-                    console.error('Firebase 同步失败:', e2);
-                    error = e2.message;
-                    
-                    const cachedData = localStorage.getItem('gamehub_cached_games');
-                    if (cachedData) {
-                        console.log('使用本地缓存数据...');
-                        const games = JSON.parse(cachedData);
-                        this.normalizeAllFields(games);
-                        App.games = games;
-                        App.nextId = games.length + 1;
-                        App.saveData();
-                        App.render();
-                        this.saveLocalDataVersion(this.config.gamesDataVersion);
-                        success = true;
-                        console.log('本地缓存加载成功!');
-                    }
-                }
-            }
-            
-            if (success) {
-                App.showToast('同步成功');
-                console.log('=== 同步完成 ===');
-            } else {
-                throw new Error(error || '所有数据源都失败');
-            }
+            console.log('开始同步游戏数据...');
+            await this.syncFromGamesJson();
+            console.log('同步成功!');
+            App.showToast('同步成功');
+            console.log('=== 同步完成 ===');
         } catch (e) {
             console.error('同步失败:', e);
             App.showToast('同步失败: ' + e.message);
@@ -820,17 +782,12 @@ const CloudSync = {
     },
 
     async syncFromGamesJson() {
-        if (this.config.gamesDataVersion && 
-            this.config.localDataVersion &&
-            this.config.gamesDataVersion === this.config.localDataVersion) {
-            App.showToast('数据已是最新');
-            return;
-        }
+        console.log('强制刷新，忽略版本检查...');
 
         let url = this.config.gamesDataUrl;
         
-        if (url.includes('github.com') && url.includes('releases/download')) {
-            url = url.replace('github.com/bianyujin/gameapp/releases/download/', 'cdn.jsdelivr.net/gh/bianyujin/gameapp@');
+        if (!url) {
+            throw new Error('games_data_url未配置，请检查config.json');
         }
         
         console.log('请求URL:', url);
@@ -840,10 +797,23 @@ const CloudSync = {
         
         if (!response.ok) {
             console.error('响应失败, 状态:', response.status);
-            throw new Error('下载失败');
+            throw new Error(`下载失败 (状态码: ${response.status})`);
         }
         
-        const data = await response.json();
+        const responseText = await response.text();
+        console.log('响应内容前200字符:', responseText.substring(0, 200));
+        
+        if (responseText.trim().startsWith('<!DOCTYPE') || responseText.trim().startsWith('<html')) {
+            throw new Error('返回的是HTML页面，不是JSON数据，请检查URL是否正确');
+        }
+        
+        let data;
+        try {
+            data = JSON.parse(responseText);
+        } catch (e) {
+            console.error('JSON解析失败:', e);
+            throw new Error('JSON解析失败，请检查数据格式');
+        }
         
         if (data) {
             let games;
@@ -1160,15 +1130,27 @@ const CloudSync = {
     },
 
     async loadCloudConfig(forceRefresh = false) {
-        console.log('使用硬编码默认配置');
-        this.config.latestVersion = '2.0.0';
-        this.config.updateUrl = 'https://pan.baidu.com/s/1cnng925doaegghKTx7Oo3w?pwd=BAYJ';
-        this.config.cloudAdminPassword = '520hd123';
-        this.config.gamesDataUrl = 'https://github.com/bianyujin/gameapp/releases/download/v1.00/games.json';
-        this.config.gamesDataVersion = '2026032403';
-        this.config.notionEmbedUrl = 'https://resonant-laser-29e.notion.site/ebd//30ad9616662180568b20d6d607924c76?v=30ad96166621802abfa8000cc45c28e6';
+        console.log('尝试从config.json加载配置...');
+        
+        try {
+            const response = await fetch('config.json');
+            if (response.ok) {
+                const configData = await response.json();
+                this.config.latestVersion = configData.latest_version || '';
+                this.config.updateUrl = configData.update_url || '';
+                this.config.cloudAdminPassword = configData.admin_password || '';
+                this.config.gamesDataUrl = configData.games_data_url || '';
+                this.config.gamesDataVersion = configData.games_data_version || '';
+                this.config.notionEmbedUrl = configData.notion_embed_url || '';
+                console.log('从config.json加载成功:', this.config);
+            } else {
+                console.log('无法从config.json加载');
+            }
+        } catch (e) {
+            console.log('加载config.json失败:', e);
+        }
+        
         this.saveConfig();
-        console.log('硬编码配置已应用:', this.config);
         return true;
     },
 
