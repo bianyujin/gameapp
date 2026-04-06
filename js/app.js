@@ -651,9 +651,13 @@ const App = {
     openEditModal(game, index) {
         const rawFields = game._rawFields || Object.keys(game._rawData || {});
         
+        const exactPrivateFields = ['搜索', '更新日志', 'FB', '视频'];
+        const containsPrivateKeywords = ['版本及更新时间'];
+        
         const isPrivateField = (key) => {
-            const privateKeywords = ['备注', '百度', '迅雷', 'UC', '预览', '排雷', '评价', '文件', '网盘', '磁链', '密码', '密钥', 'token', 'secret', 'private', '隐藏'];
-            return privateKeywords.some(kw => key.toLowerCase().includes(kw.toLowerCase()));
+            if (exactPrivateFields.includes(key)) return true;
+            if (containsPrivateKeywords.some(kw => key.includes(kw))) return true;
+            return false;
         };
         
         const allPrivateFields = {};

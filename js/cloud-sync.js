@@ -292,10 +292,13 @@ const CloudSync = {
     mapGameFields(game) {
         const internalFields = ['id', 'icon', 'category', 'rating', 'downloads', 'description', 'updateDate', 'isFavorite', '_rawFields', '_rawData', 'title', 'privateData', '_fieldMap'];
         
-        const privateKeywords = ['搜索', '更新日志', 'FB', '版本及更新时间', '视频', '备注', '百度', '迅雷', 'UC', '预览', '排雷', '评价', '文件', '网盘', '磁链', '密码', '密钥', 'token', 'secret', 'private', '隐藏'];
+        const exactPrivateFields = ['搜索', '更新日志', 'FB', '视频'];
+        const containsPrivateKeywords = ['版本及更新时间'];
         
         const isPrivateField = (key) => {
-            return privateKeywords.some(kw => key.includes(kw));
+            if (exactPrivateFields.includes(key)) return true;
+            if (containsPrivateKeywords.some(kw => key.includes(kw))) return true;
+            return false;
         };
 
         const mapped = {
@@ -392,7 +395,7 @@ const CloudSync = {
         }
         
         const defaultFieldOrder = [
-            '文件ID', '排雷|评价', '排雷 评价', '备注', '预览', '百度', '迅雷', 'UC',
+            '文件ID', '备注', '百度', '迅雷', 'UC', '预览', '排雷 评价', '排雷|评价',
             '评级', '评级（成品级别）评分105- X          90-100 SSS           75-85 SS             60-70 S         45-55A     25-40B',
             '剧情有无代入感10分，实用度如何，20分好不好冲？（30分）',
             '画风立绘建模如何？10分。动态？10分。cg质量？10分（30分）',
