@@ -1149,54 +1149,186 @@ const App = {
         return game.id || 0;
     },
 
-    // 获取游戏封面图URL（优先级：封面字段 > 预览相册）
-    getGameCoverUrl(game) {
+    // 获取预览相册URL（用于懒加载提取图片）
+    getPreviewUrl(game) {
         if (!game._rawData) return null;
-        // 1. 封面字段（直接图片URL）
-        const cover = game._rawData['封面'] || '';
-        if (cover && /^https?:\/\//i.test(cover)) return cover;
-        // 2. 预览相册（尝试作为图片来源）
         const preview = game._rawData['预览'] || '';
-        if (preview && /^https?:\/\//i.test(preview)) return preview;
+        if (preview && /^https?:\/\//i.test(preview) && !preview.includes('notion.com')) {
+            return preview;
+        }
         return null;
     },
 
-    // 根据游戏类型返回渐变色
-    getTypeGradient(type) {
-        const gradients = {
-            'ACT': 'linear-gradient(135deg, #ef4444, #f97316)',
-            'RPG': 'linear-gradient(135deg, #8b5cf6, #6366f1)',
-            'SLG': 'linear-gradient(135deg, #0ea5e9, #06b6d4)',
-            'ADV': 'linear-gradient(135deg, #10b981, #059669)',
-            'SIM': 'linear-gradient(135deg, #f59e0b, #eab308)',
-            'STG': 'linear-gradient(135deg, #ec4899, #db2777)',
-            'PUZ': 'linear-gradient(135deg, #14b8a6, #0d9488)',
-            'TBS': 'linear-gradient(135deg, #64748b, #475569)',
-            'VN':  'linear-gradient(135deg, #f43f5e, #e11d48)',
-            'GAL': 'linear-gradient(135deg, #a855f7, #7c3aed)',
-        };
-        return gradients[type] || 'linear-gradient(135deg, #6366f1, #8b5cf6)';
+    renderTable() {
+        const games = this.getFilteredGames();
+        const total = games.length;
+
+        const tbody = document.getElementById('tableBody');
+        if (!tbody) {
+            console.warn('tableBody元素不存在');
+            return;
+        }
+
+        tbody.innerHTML = games.map((game, index) => {
+            const gameIndex = this.games.indexOf(game);
+            const type = this.extractGameType(game.title || '') || this.extractGameType(game.category || '');
+            const gradient = this.getTypeGradient(type);
+            const typeIcon = this.getGameTypeIcon(type);
+            const previewUrl = this.getPreviewUrl(game);
+
+            return `
+            <div class="game-card" data-index="${gameIndex}" onclick="App.editGameByIndex(${gameIndex})"
+                 ${previewUrl ? `data-preview="${this.escapeHtml(previewUrl)}"` : ''}>
+                <div class="game-cover" style="background: ${gradient};">
+                    <span class="cover-placeholder">${typeIcon}</span>
+                    <img class="cover-img" loading="lazy" style="display:none;" onerror="this.style.display='none';this.previousElementSibling.style.display='flex';" />
+                </div>
+                <div class="game-info">
+                    <div class="game-title">${this.escapeHtml(game.title || '未命名')}</div>
+                    <div class="game-meta">
+                        <span class="game-category">${this.escapeHtml(game.category || '其他')}</span>
+                        <span class="game-rating">⭐ ${game.rating || 0}</span>
+                    </div>
+                </div>
+            </div>
+        `}).join('');
+
+        // 启动封面图懒加载
+        this.initCoverLazyLoad();
+
+        const tableInfo = document.getElementById('tableInfo');
+        if (tableInfo) {
+            tableInfo.textContent = `共 ${total} 条`;
+        }
+
+        this.updateProfileCounts();
     },
 
-    getGameTypeIcon(type) {
-        const icons = { ACT:'⚔️', RPG:'🧙', SLG:'♟️', ADV:'🗺️', SIM:'💕', STG:'✈️',
-                        PUZ:'🧩', TBS:'📊', VN:'📖', GAL:'💜' };
-        return icons[type] || '🎮';
+    // ========== 封面图懒加载 ==========
+    _coverCache: {},       // { previewUrl: [imgUrl1, imgUrl2, ...] }
+    _loadingPreviews: new Set(), // 正在加载的URL
+
+    initCoverLazyLoad() {
+        const cards = document.querySelectorAll('.game-card[data-preview]');
+        if (!cards.length) return;
+
+        if (!('IntersectionObserver' in window)) {
+            // 不支持Observer，直接加载可见的前5个
+            cards.forEach((card, i) => { if (i < 5) this.loadCoverImage(card); });
+            return;
+        }
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    this.loadCoverImage(entry.target);
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, { rootMargin: '100px', threshold: 0.1 });
+
+        cards.forEach(card => observer.observe(card));
     },
 
-    escapeHtml(str) {
-        if (!str) return '';
-        const div = document.createElement('div');
-        div.textContent = str;
-        return div.innerHTML;
+    async loadCoverImage(card) {
+        const previewUrl = card.getAttribute('data-preview');
+        if (!previewUrl) return;
+        const img = card.querySelector('.cover-img');
+        const placeholder = card.querySelector('.cover-placeholder');
+        if (!img || !placeholder) return;
+
+        // 已有缓存
+        if (this._coverCache[previewUrl]) {
+            const urls = this._coverCache[previewUrl];
+            img.src = urls[Math.floor(Math.random() * urls.length)];
+            img.style.display = '';
+            placeholder.style.display = 'none';
+            return;
+        }
+
+        // 正在加载中
+        if (this._loadingPreviews.has(previewUrl)) return;
+        this._loadingPreviews.add(previewUrl);
+
+        try {
+            const resp = await fetch(previewUrl, {
+                method: 'GET',
+                headers: { 'Accept': 'text/html,*/*' },
+                signal: AbortSignal.timeout(8000)
+            });
+            const html = await resp.text();
+            const images = this.extractImagesFromHtml(html, previewUrl);
+
+            if (images.length > 0) {
+                this._coverCache[previewUrl] = images;
+                const pick = images[Math.floor(Math.random() * images.length)];
+                img.src = pick;
+                img.style.display = '';
+                placeholder.style.display = 'none';
+            }
+        } catch(e) {
+            console.log('封面图加载失败:', e.message);
+        } finally {
+            this._loadingPreviews.delete(previewUrl);
+        }
     },
+
+    extractImagesFromHtml(html, baseUrl) {
+        const imgs = [];
+
+        // 1. <img src="..."> 标签
+        const re = /<img[^>]+src=["']([^"'\s>]+)["']/gi;
+        let m;
+        while ((m = re.exec(html)) !== null) {
+            let src = m[1].replace(/&amp;/g, '&');
+            if (/icon|logo|avatar|favicon|emoji|svg|1x1|pixel|tracking/i.test(src)) continue;
+            if (!/^https?:\/\//i.test(src)) {
+                try { src = new URL(src, baseUrl).href; } catch(e) { continue; }
+            }
+            if (src.length > 25 && /\.(jpg|jpeg|png|webp|bmp)(\?|$)/i.test(src) && !imgs.includes(src)) {
+                imgs.push(src);
+            }
+        }
+
+        // 2. moebox.io: /image/xxxx.xxxx 格式
+        if (baseUrl.includes('moebox.io')) {
+            const moeRe = /\/image\/([a-f0-9]{20,}\.[a-zA-Z0-9]{4,})/gi;
+            while ((m = moeRe.exec(html)) !== null) {
+                const u = 'https://pic.moebox.io/image/' + m[1];
+                if (!imgs.includes(u)) imgs.push(u);
+            }
+        }
+
+        // 3. ibb.co: og:image 或 class="image"
+        if (baseUrl.includes('ibb.co')) {
+            const ogRe = /content=["']([^"']*\.(?:jpg|jpeg|png|webp)[^"']*?)["'][^>]*property="og:image"/i;
+            m = ogRe.exec(html);
+            if (m && !imgs.includes(m[1])) imgs.unshift(m[1]);
+            
+            const clsRe = /<img[^>]+class="[^"]*image[^"]*"[^>]+src=["']([^"']+)["']/i;
+            m = clsRe.exec(html);
+            if (m && !imgs.includes(m[1])) imgs.unshift(m[1]);
+        }
+
+        // 4. tu.coklw.vip: 相对路径图片
+        if (baseUrl.includes('coklw.vip')) {
+            const cokRe = /src=["'](\/[^"']*\.(?:jpg|jpeg|png|webp)[^"']*?)["']/gi;
+            while ((m = cokRe.exec(html)) !== null) {
+                const u = 'https://tu.coklw.vip' + m[1];
+                if (!imgs.includes(u)) imgs.push(u);
+            }
+        }
+
+        return imgs;
+    },
+
+    // ========== 工具方法 ==========
     extractGameType(str) {
         if (!str) return '其他';
-        const match = str.match(/(?:【|\[|\/)(ACT|RPG|SLG|ADV|SIM|PUZ|STG|TBS|RTS|FTG|SPG|VN|RTS|TD|SRPG|ARPG|MMO|FPS|TPS|RAC|MUS|TAB|PZL|GAL)/i);
+        const match = str.match(/(?:【|\[|\/)(ACT|RPG|SLG|ADV|SIM|PUZ|STG|TBS|RTS|FTG|SPG|VN|TD|SRPG|ARPG|MMO|FPS|TPS|RAC|MUS|TAB|PZL|GAL)/i);
         return match ? match[1].toUpperCase() : '其他';
     },
 
-    // 获取所有实际存在的游戏类型
     getGameTypes() {
         const typeSet = new Set();
         this.games.forEach(g => {
@@ -1205,6 +1337,30 @@ const App = {
         });
         const order = ['ACT','RPG','SLG','ADV','SIM','STG','PUZ','TBS','RTS','FTG','SPG','VN','ARPG','FPS','TD','SRPG','GAL','其他'];
         return Array.from(typeSet).sort((a,b) => (order.indexOf(a)||99) - (order.indexOf(b)||99));
+    },
+
+    getTypeGradient(type) {
+        const g = {
+            ACT:'linear-gradient(135deg,#ef4444,#f97316)', RPG:'linear-gradient(135deg,#8b5cf6,#6366f1)',
+            SLG:'linear-gradient(135deg,#0ea5e9,#06b6d4)', ADV:'linear-gradient(135deg,#10b981,#059669)',
+            SIM:'linear-gradient(135deg,#f59e0b,#eab308)', STG:'linear-gradient(135deg,#ec4899,#db2777)',
+            PUZ:'linear-gradient(135deg,#14b8a6,#0d9488)', TBS:'linear-gradient(135deg,#64748b,#475569)',
+            VN:'linear-gradient(135deg,#f43f5e,#e11d48)', GAL:'linear-gradient(135deg,#a855f7,#7c3aed)'
+        };
+        return g[type] || 'linear-gradient(135deg,#6366f1,#8b5cf6)';
+    },
+
+    getGameTypeIcon(type) {
+        const i = {ACT:'⚔️',RPG:'🧙',SLG:'♟️',ADV:'🗺️',SIM:'💕',STG:'✈️',
+                   PUZ:'🧩',TBS:'📊',VN:'📖',GAL:'💜'};
+        return i[type] || '🎮';
+    },
+
+    escapeHtml(str) {
+        if (!str) return '';
+        const d = document.createElement('div');
+        d.textContent = str;
+        return d.innerHTML;
     },
 
     exportData() {
