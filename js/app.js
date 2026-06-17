@@ -495,24 +495,32 @@ const App = {
     renderTable() {
         const games = this.getFilteredGames();
         const total = games.length;
-        
+
         const tbody = document.getElementById('tableBody');
         if (!tbody) {
             console.warn('tableBody元素不存在');
             return;
         }
-        
+
         tbody.innerHTML = games.map((game, index) => {
             const gameIndex = this.games.indexOf(game);
+            const type = this.extractGameType(game.title || '') || this.extractGameType(game.category || '');
+            const coverUrl = this.getGameCoverUrl(game);
+            const gradient = this.getTypeGradient(type);
+            const typeIcon = this.getGameTypeIcon(type);
+
             return `
             <div class="game-card" data-index="${gameIndex}" onclick="App.editGameByIndex(${gameIndex})">
-                <div class="game-cover">
-                    ${game.icon || '🎮'}
+                <div class="game-cover" style="background: ${gradient};">
+                    ${coverUrl
+                        ? `<img src="${coverUrl}" alt="" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" /><span style="display:none;">${typeIcon}</span>`
+                        : typeIcon
+                    }
                 </div>
                 <div class="game-info">
-                    <div class="game-title">${game.title || '未命名'}</div>
+                    <div class="game-title">${this.escapeHtml(game.title || '未命名')}</div>
                     <div class="game-meta">
-                        <span class="game-category">${game.category || '其他'}</span>
+                        <span class="game-category">${this.escapeHtml(game.category || '其他')}</span>
                         <span class="game-rating">⭐ ${game.rating || 0}</span>
                     </div>
                 </div>
@@ -1141,7 +1149,47 @@ const App = {
         return game.id || 0;
     },
 
-    // 从标题/分类中提取游戏类型（ACT/RPG/SLG/ADV等）
+    // 获取游戏封面图URL（优先级：封面字段 > 预览相册）
+    getGameCoverUrl(game) {
+        if (!game._rawData) return null;
+        // 1. 封面字段（直接图片URL）
+        const cover = game._rawData['封面'] || '';
+        if (cover && /^https?:\/\//i.test(cover)) return cover;
+        // 2. 预览相册（尝试作为图片来源）
+        const preview = game._rawData['预览'] || '';
+        if (preview && /^https?:\/\//i.test(preview)) return preview;
+        return null;
+    },
+
+    // 根据游戏类型返回渐变色
+    getTypeGradient(type) {
+        const gradients = {
+            'ACT': 'linear-gradient(135deg, #ef4444, #f97316)',
+            'RPG': 'linear-gradient(135deg, #8b5cf6, #6366f1)',
+            'SLG': 'linear-gradient(135deg, #0ea5e9, #06b6d4)',
+            'ADV': 'linear-gradient(135deg, #10b981, #059669)',
+            'SIM': 'linear-gradient(135deg, #f59e0b, #eab308)',
+            'STG': 'linear-gradient(135deg, #ec4899, #db2777)',
+            'PUZ': 'linear-gradient(135deg, #14b8a6, #0d9488)',
+            'TBS': 'linear-gradient(135deg, #64748b, #475569)',
+            'VN':  'linear-gradient(135deg, #f43f5e, #e11d48)',
+            'GAL': 'linear-gradient(135deg, #a855f7, #7c3aed)',
+        };
+        return gradients[type] || 'linear-gradient(135deg, #6366f1, #8b5cf6)';
+    },
+
+    getGameTypeIcon(type) {
+        const icons = { ACT:'⚔️', RPG:'🧙', SLG:'♟️', ADV:'🗺️', SIM:'💕', STG:'✈️',
+                        PUZ:'🧩', TBS:'📊', VN:'📖', GAL:'💜' };
+        return icons[type] || '🎮';
+    },
+
+    escapeHtml(str) {
+        if (!str) return '';
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    },
     extractGameType(str) {
         if (!str) return '其他';
         const match = str.match(/(?:【|\[|\/)(ACT|RPG|SLG|ADV|SIM|PUZ|STG|TBS|RTS|FTG|SPG|VN|RTS|TD|SRPG|ARPG|MMO|FPS|TPS|RAC|MUS|TAB|PZL|GAL)/i);
