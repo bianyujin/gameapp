@@ -1,6 +1,7 @@
 const App = {
     games: [],
     isAdmin: false,
+    _userSorted: false,
     categories: [
         { name: '动作', icon: '⚔️', count: 24 },
         { name: '角色扮演', icon: '🧙', count: 18 },
@@ -445,35 +446,33 @@ const App = {
 
         if (this.tableState.searchQuery) {
             const q = this.tableState.searchQuery.toLowerCase();
-            games = games.filter(g => 
-                g.title.toLowerCase().includes(q) ||
-                g.category.toLowerCase().includes(q)
-            );
+            games = games.filter(g => {
+                const titleMatch = (g.title || '').toLowerCase().includes(q);
+                const catMatch = (g.category || '').toLowerCase().includes(q);
+                const rawSearch = (g._rawData && g._rawData['搜索']) || '';
+                const searchMatch = rawSearch.toLowerCase().includes(q);
+                // 搜索所有_rawData字段值
+                let descMatch = false;
+                if (g._rawData) {
+                    descMatch = Object.values(g._rawData).some(v =>
+                        typeof v === 'string' && v.toLowerCase().includes(q)
+                    );
+                }
+                return titleMatch || catMatch || searchMatch || descMatch;
+            });
         }
 
         if (this.tableState.filterCategories.size > 0) {
-            games = games.filter(g => this.tableState.filterCategories.has(g.category));
+            games = games.filter(g => {
+                const gameType = this.extractGameType(g.title || '') || this.extractGameType(g.category || '');
+                return this.tableState.filterCategories.has(gameType);
+            });
         }
 
         games = games.filter(g =>
             parseFloat(g.rating) >= this.tableState.minRating &&
             parseFloat(g.rating) <= this.tableState.maxRating
         );
-
-        // 排序
-        const { sortColumn, sortDirection } = this.tableState;
-        games.sort((a, b) => {
-            let va = a[sortColumn], vb = b[sortColumn];
-            if (sortColumn === 'updateDate') {
-                va = va ? new Date(va).getTime() : 0;
-                vb = vb ? new Date(vb).getTime() : 0;
-            } else if (typeof va === 'string') {
-                va = va.toLowerCase(); vb = (vb || '').toLowerCase();
-            }
-            if (va < vb) return sortDirection === 'asc' ? -1 : 1;
-            if (va > vb) return sortDirection === 'asc' ? 1 : -1;
-            return 0;
-        });
 
         return games;
     },
@@ -957,7 +956,7 @@ const App = {
         document.body.insertAdjacentHTML('beforeend', modalHtml);
         
         const container = document.getElementById('filterCategories');
-        const cats = ['动作', '角色扮演', '策略', '休闲', '竞技', '冒险'];
+        const cats = this.getGameTypes();
         container.innerHTML = cats.map(cat => `
             <span class="filter-option ${this.tableState.filterCategories.has(cat) ? 'selected' : ''}"
                   onclick="App.toggleFilterCategory('${cat}')">${cat}</span>
@@ -982,6 +981,7 @@ const App = {
         this.tableState.filterCategories.clear();
         this.tableState.minRating = 0;
         this.tableState.maxRating = 5;
+        this._userSorted = false;
         this.applyFilters();
     },
 
@@ -1037,6 +1037,7 @@ const App = {
             const j = Math.floor(Math.random() * (i + 1));
             [this.games[i], this.games[j]] = [this.games[j], this.games[i]];
         }
+        this._userSorted = true;
         this.closeSortModal();
         this.renderTable();
         this.showToast('随机排序完成');
@@ -1082,6 +1083,7 @@ const App = {
             return 0;
         });
         
+        this._userSorted = true;
         this.closeSortModal();
         this.renderTable();
         this.showToast('排序完成');
@@ -1103,6 +1105,24 @@ const App = {
         }
         
         return new Date(0);
+    },
+
+    // 从标题/分类中提取游戏类型（ACT/RPG/SLG/ADV等）
+    extractGameType(str) {
+        if (!str) return '其他';
+        const match = str.match(/(?:【|\[|\/)(ACT|RPG|SLG|ADV|SIM|PUZ|STG|TBS|RTS|FTG|SPG|VN|RTS|TD|SRPG|ARPG|MMO|FPS|TPS|RAC|MUS|TAB|PZL|GAL)/i);
+        return match ? match[1].toUpperCase() : '其他';
+    },
+
+    // 获取所有实际存在的游戏类型
+    getGameTypes() {
+        const typeSet = new Set();
+        this.games.forEach(g => {
+            const t = this.extractGameType(g.title || '') || this.extractGameType(g.category || '');
+            typeSet.add(t);
+        });
+        const order = ['ACT','RPG','SLG','ADV','SIM','STG','PUZ','TBS','RTS','FTG','SPG','VN','ARPG','FPS','TD','SRPG','GAL','其他'];
+        return Array.from(typeSet).sort((a,b) => (order.indexOf(a)||99) - (order.indexOf(b)||99));
     },
 
     exportData() {
@@ -1397,12 +1417,14 @@ const App = {
     },
 
     render() {
-        // 全局排序：默认按修改时间倒序（最新在前）
-        this.games.sort((a, b) => {
-            const ta = a.updateDate ? new Date(a.updateDate).getTime() : 0;
-            const tb = b.updateDate ? new Date(b.updateDate).getTime() : 0;
-            return tb - ta;
-        });
+        // 首次加载时默认按修改时间倒序（仅当用户未手动排序时）
+        if (!this._userSorted) {
+            this.games.sort((a, b) => {
+                const ta = a.updateDate ? new Date(a.updateDate).getTime() : 0;
+                const tb = b.updateDate ? new Date(b.updateDate).getTime() : 0;
+                return tb - ta;
+            });
+        }
         this.renderCarousel();
         this.renderCategories();
         this.renderHomeGames('');
