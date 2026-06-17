@@ -521,7 +521,7 @@ const App = {
                     <div class="game-title">${this.escapeHtml(game.title || '未命名')}</div>
                     <div class="game-meta">
                         <span class="game-category">${this.escapeHtml(game.category || '其他')}</span>
-                        <span class="game-rating">⭐ ${game.rating || 0}</span>
+                        <span class="game-rating">${this.getGradeDisplay(game) || '⭐ ' + (game.rating || 0)}</span>
                     </div>
                 </div>
             </div>
@@ -562,7 +562,7 @@ const App = {
                     <span style="font-size: 24px;">${item.icon || '🎮'}</span>
                     <div>
                         <div style="font-weight: 500;">${item.title || '未命名'}</div>
-                        <div style="font-size: 12px; color: #94a3b8;">${item.category || '其他'} · ⭐ ${item.rating || 0}</div>
+                        <div style="font-size: 12px; color: #94a3b8;">${item.category || '其他'} · ${this.getGradeDisplay(item) || ('⭐ ' + (item.rating || 0))}</div>
                     </div>
                 </div>
             </div>
@@ -762,12 +762,8 @@ const App = {
                                 <div class="form-input" style="background: #0f172a;">${game.category || '其他'}</div>
                             </div>
                             <div class="form-group">
-                                <label class="form-label">评分</label>
-                                <div class="form-input" style="background: #0f172a;">⭐ ${game.rating || 0}</div>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">下载量</label>
-                                <div class="form-input" style="background: #0f172a;">${game.downloads || '-'}</div>
+                                <label class="form-label">评级</label>
+                                <div class="form-input" style="background: #0f172a;">${this.getGradeDisplay(game) || ('⭐ ' + (game.rating || 0))}</div>
                             </div>
                         </div>
                         <div class="form-group">
@@ -1187,7 +1183,7 @@ const App = {
                     <div class="game-title">${this.escapeHtml(game.title || '未命名')}</div>
                     <div class="game-meta">
                         <span class="game-category">${this.escapeHtml(game.category || '其他')}</span>
-                        <span class="game-rating">⭐ ${game.rating || 0}</span>
+                        <span class="game-rating">${this.getGradeDisplay(game) || '⭐ ' + (game.rating || 0)}</span>
                     </div>
                 </div>
             </div>
@@ -1323,6 +1319,26 @@ const App = {
     },
 
     // ========== 工具方法 ==========
+    getGameGrade(game) {
+        if (!game._rawData) return null;
+        const gradeKey = Object.keys(game._rawData).find(k => k.includes('评级（成品级别）'));
+        if (!gradeKey) return null;
+        let val = (game._rawData[gradeKey] || '').toString().trim();
+        if (!val || val === '0' || val === '-' || gradeKey === val) return null;
+        // 处理各种格式：S / SS 80 / SSS 90 / A 50 / S(SS) / SS(SSS) 85 等
+        val = val.replace(/\(.*?\)/g, '').trim();       // 去掉括号注释
+        const m = val.match(/^(X|SSS|SS|S|A|B|C)\b/i);
+        return m ? m[1].toUpperCase() : (val.length <= 3 ? val.toUpperCase() : null);
+    },
+
+    getGradeDisplay(game) {
+        const grade = this.getGameGrade(game);
+        if (!grade) return '';
+        const colors = { X: '#ef4444', SSS: '#f97316', SS: '#eab308', S: '#22c55e', A: '#3b82f6', B: '#8b5cf6', C: '#64748b' };
+        const color = colors[grade] || '#6366f1';
+        return `<span class="game-rating" style="background:${color}20;color:${color};border:1px solid ${color}40;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;">${grade}</span>`;
+    },
+
     extractGameType(str) {
         if (!str) return '其他';
         // 宽松匹配：直接搜类型关键词，不限前缀
