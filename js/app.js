@@ -150,13 +150,8 @@ const App = {
         const searchInput = document.getElementById('tableSearch');
         if (searchInput) searchInput.value = '';
         
-        this.games.sort((a, b) => {
-            const valA = a._rawData?.['最后修改时间'] || a.updateDate || '';
-            const valB = b._rawData?.['最后修改时间'] || b.updateDate || '';
-            const dateA = this.parseChineseDate(valA);
-            const dateB = this.parseChineseDate(valB);
-            return dateB - dateA;
-        });
+        this._userSorted = false;
+        this.games.sort((a, b) => this.getGameDate(b) - this.getGameDate(a));
         
         this.renderTable();
         this.loadRandomImage();
@@ -1127,14 +1122,9 @@ const App = {
         return new Date(0);
     },
 
-    // 获取游戏的修改时间戳（用于排序），多层兜底
+    // 获取游戏的修改时间戳（用于排序），优先用精确的原始字段
     getGameDate(game) {
-        // 1. 优先用 updateDate 字段
-        if (game.updateDate) {
-            const d = new Date(game.updateDate);
-            if (!isNaN(d.getTime())) return d.getTime();
-        }
-        // 2. 兜底：从 _rawData 取最后修改时间
+        // 1. 最优先：从 _rawData 取最后修改时间（有精确到分钟的时间）
         if (game._rawData) {
             const raw = game._rawData['最后修改时间'] || game._rawData['最后修改'] || '';
             if (raw) {
@@ -1142,7 +1132,12 @@ const App = {
                 if (d.getTime() > 0) return d.getTime();
             }
         }
-        // 3. 最兜底：用 id 越小越旧（先添加的排后面）
+        // 2. 兜底：用 updateDate 字段
+        if (game.updateDate) {
+            const d = new Date(game.updateDate);
+            if (!isNaN(d.getTime())) return d.getTime();
+        }
+        // 3. 最兜底：id 越大越新
         return game.id || 0;
     },
 
