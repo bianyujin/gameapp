@@ -61,6 +61,7 @@ const App = {
         this.startCarousel();
         this.loadRandomImage();
         this.checkGuideBanner();
+        this.initCoverSetting();
         this.autoSync();
         this.checkForUpdates();
         this.initHistory();
@@ -116,6 +117,21 @@ const App = {
 
     async autoSync() {
         try {
+            const autoSyncEnabled = Storage.getItem('gamehub_auto_sync_enabled') === 'true';
+            if (!autoSyncEnabled) {
+                // 自动同步关闭：重置为模版数据
+                const hasSynced = Storage.getItem('gamehub_has_synced') === 'true';
+                if (hasSynced) {
+                    // 清除已同步的数据，下次显示模版数据
+                    try { Storage.removeItem('gamehub_games'); } catch(e) {}
+                    try { Storage.removeItem('gamehub_has_synced'); } catch(e) {}
+                    try { Storage.removeItem('gamehub_last_sync_time'); } catch(e) {}
+                    console.log('自动同步已关闭，已清除缓存数据');
+                }
+                return;
+            }
+
+            // 自动同步开启：正常同步流程
             const lastSyncTime = Storage.getItem('gamehub_last_sync_time');
             const now = Date.now();
             const oneHour = 60 * 60 * 1000;
@@ -1168,16 +1184,17 @@ const App = {
         tbody.innerHTML = games.map((game, index) => {
             const gameIndex = this.games.indexOf(game);
             const type = this.extractGameType(game.title || '') || this.extractGameType(game.category || '');
+            const coverUrl = this.getGameCoverUrl(game);
             const gradient = this.getTypeGradient(type);
             const typeIcon = this.getGameTypeIcon(type);
-            const previewUrl = this.getPreviewUrl(game);
 
             return `
-            <div class="game-card" data-index="${gameIndex}" onclick="App.editGameByIndex(${gameIndex})"
-                 ${previewUrl ? `data-preview="${this.escapeHtml(previewUrl)}"` : ''}>
+            <div class="game-card" data-index="${gameIndex}" onclick="App.editGameByIndex(${gameIndex})">
                 <div class="game-cover" style="background: ${gradient};">
-                    <span class="cover-placeholder">${typeIcon}</span>
-                    <img class="cover-img" loading="lazy" style="display:none;" onerror="this.style.display='none';this.previousElementSibling.style.display='flex';" />
+                    ${coverUrl
+                        ? `<img src="${coverUrl}" alt="" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" /><span style="display:none;">${typeIcon}</span>`
+                        : typeIcon
+                    }
                 </div>
                 <div class="game-info">
                     <div class="game-title">${this.escapeHtml(game.title || '未命名')}</div>
@@ -1188,9 +1205,6 @@ const App = {
                 </div>
             </div>
         `}).join('');
-
-        // 启动封面图懒加载
-        this.initCoverLazyLoad();
 
         const tableInfo = document.getElementById('tableInfo');
         if (tableInfo) {
@@ -1337,6 +1351,88 @@ const App = {
         const colors = { X: '#ef4444', SSS: '#f97316', SS: '#eab308', S: '#22c55e', A: '#3b82f6', B: '#8b5cf6', C: '#64748b' };
         const color = colors[grade] || '#6366f1';
         return `<span class="game-rating" style="background:${color}20;color:${color};border:1px solid ${color}40;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;">${grade}</span>`;
+    },
+
+    // 封面图：从预提取的 coverUrls 中随机取一张
+    getGameCoverUrl(game) {
+        try {
+            if (!this._coverEnabled) return null;
+            const urls = game.coverUrls;
+            if (!urls || !Array.isArray(urls) || urls.length === 0) return null;
+            return urls[Math.floor(Math.random() * urls.length)];
+        } catch(e) { return null; }
+    },
+
+    // 封面预览开关状态
+    _coverEnabled: false,
+
+    initCoverSetting() {
+        try {
+            this._coverEnabled = Storage.getItem('gamehub_cover_enabled') === 'true';
+        } catch(e) { this._coverEnabled = false; }
+    },
+
+    setCoverEnabled(val) {
+        this._coverEnabled = !!val;
+        try { Storage.setItem('gamehub_cover_enabled', this._coverEnabled ? 'true' : 'false'); } catch(e) {}
+        this.render();
+    },
+
+    // 年龄验证弹窗
+    showAgeVerifyModal() {
+        const modalHtml = `
+            <div id="ageVerifyModal" class="modal">
+                <div class="modal-backdrop"></div>
+                <div class="modal-content" style="max-width:340px;">
+                    <div class="modal-header">
+                        <h3 class="modal-title">年龄验证</h3>
+                    </div>
+                    <div class="modal-body" style="text-align:center;">
+                        <p style="color:#f87171;font-size:13px;margin-bottom:12px;">封面预览图可能包含敏感内容</p>
+                        <p style="font-size:14px;color:#94a3b8;margin-bottom:16px;">请输入您的年龄以继续</p>
+                        <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:16px;">
+                            <input type="number" id="ageInput" min="1" max="120" placeholder="年龄"
+                                   style="width:80px;padding:8px 12px;border:1px solid #334155;border-radius:8px;background:#0f172a;color:#e2e8f0;text-align:center;font-size:16px;" />
+                            <span style="color:#94a3b8;">岁</span>
+                        </div>
+                        <div id="ageError" style="color:#f87171;font-size:12px;display:none;">您未满18岁，无法开启此功能</div>
+                    </div>
+                    <div class="modal-footer" style="justify-content:center;gap:12px;">
+                        <button class="btn btn-secondary" onclick="document.getElementById('ageVerifyModal').remove()">取消</button>
+                        <button class="btn btn-primary" onclick="App.verifyAge()">确认</button>
+                    </div>
+                </div>
+            </div>`;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        setTimeout(() => {
+            const input = document.getElementById('ageInput');
+            if (input) input.focus();
+        }, 100);
+    },
+
+    verifyAge() {
+        const input = document.getElementById('ageInput');
+        const err = document.getElementById('ageError');
+        const age = parseInt(input?.value, 10);
+        if (isNaN(age) || age < 1 || age > 120) {
+            if (err) err.style.display = 'block'; err.textContent = '请输入有效年龄';
+            return;
+        }
+        if (age >= 18) {
+            document.getElementById('ageVerifyModal').remove();
+            this.setCoverEnabled(true);
+            this.updateCoverToggleUI(true);
+            App.showToast('封面预览已开启');
+        } else {
+            if (err) err.style.display = 'block'; err.textContent = '您未满18岁，无法开启此功能';
+            this.setCoverEnabled(false);
+            this.updateCoverToggleUI(false);
+        }
+    },
+
+    updateCoverToggleUI(enabled) {
+        const checkbox = document.getElementById('coverPreviewToggle');
+        if (checkbox) checkbox.checked = enabled;
     },
 
     extractGameType(str) {

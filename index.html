@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="css/styles.css?v=5">
     <link rel="manifest" href="manifest.json">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <script src="js/app.js?v=8"></script>
+    <script src="js/app.js?v=9"></script>
     <script src="js/cloud-sync.js?v=5"></script></head>
 <body>
     <div id="app">
@@ -109,9 +109,9 @@
                         </div>
                         <div class="settings-item">
                             <span class="settings-icon">🔄</span>
-                            <span class="settings-label">自动更新</span>
+                            <span class="settings-label">自动同步数据</span>
                             <label class="switch">
-                                <input type="checkbox" checked id="autoUpdateToggle">
+                                <input type="checkbox" id="autoSyncToggle">
                                 <span class="slider"></span>
                             </label>
                         </div>
@@ -125,6 +125,14 @@
                             <span class="settings-icon">👤</span>
                             <span class="settings-label" id="userStatusLabel">未登录</span>
                             <button class="btn-small" id="userLoginBtn">登录</button>
+                        </div>
+                        <div class="settings-item">
+                            <span class="settings-icon">🖼️</span>
+                            <span class="settings-label">封面预览图</span>
+                            <label class="switch">
+                                <input type="checkbox" id="coverPreviewToggle">
+                                <span class="slider"></span>
+                            </label>
                         </div>
                     </div>
                 </div>
@@ -272,6 +280,36 @@
             
             const addGameFab = document.getElementById('addGameFab');
             if (addGameFab) addGameFab.style.display = 'flex';
+
+            // 封面预览开关
+            const coverToggle = document.getElementById('coverPreviewToggle');
+            if (coverToggle) {
+                coverToggle.checked = App._coverEnabled || false;
+                coverToggle.addEventListener('change', () => {
+                    if (coverToggle.checked) {
+                        App.showAgeVerifyModal();
+                    } else {
+                        App.setCoverEnabled(false);
+                        App.showToast('封面预览已关闭');
+                    }
+                });
+            }
+
+            // 自动同步开关
+            const autoSyncToggle = document.getElementById('autoSyncToggle');
+            if (autoSyncToggle) {
+                try { autoSyncToggle.checked = Storage.getItem('gamehub_auto_sync_enabled') === 'true'; } catch(e) {}
+                autoSyncToggle.addEventListener('change', () => {
+                    try { Storage.setItem('gamehub_auto_sync_enabled', autoSyncToggle.checked ? 'true' : 'false'); } catch(e) {}
+                    if (autoSyncToggle.checked) {
+                        App.showToast('自动同步已开启，下次打开将自动拉取最新数据');
+                        // 立即触发一次同步
+                        CloudSync.syncFromCloud();
+                    } else {
+                        App.showToast('自动同步已关闭，需手动同步获取数据');
+                    }
+                });
+            }
         });
     </script>
 </body>
