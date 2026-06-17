@@ -32,8 +32,8 @@ const App = {
     nextId: 51,
 
     init() {
-        this.isAdmin = localStorage.getItem('gamehub_is_admin') === 'true';
-        this.loadDarkMode();
+        try { this.isAdmin = localStorage.getItem('gamehub_is_admin') === 'true'; } catch(e) { this.isAdmin = false; }
+        try { this.loadDarkMode(); } catch(e) {}
         this.loadData();
         this.bindEvents();
         this.render();
@@ -94,21 +94,25 @@ const App = {
     },
 
     async autoSync() {
-        const lastSyncTime = localStorage.getItem('gamehub_last_sync_time');
-        const now = Date.now();
-        const oneHour = 60 * 60 * 1000;
-        
-        if (!lastSyncTime || (now - parseInt(lastSyncTime)) > oneHour) {
-            console.log('自动同步开始...');
-            try {
-                await CloudSync.syncFromCloud();
-                localStorage.setItem('gamehub_has_synced', 'true');
-                localStorage.setItem('gamehub_last_sync_time', now.toString());
-                this.hideGuideBanner();
-                console.log('自动同步完成');
-            } catch (e) {
-                console.log('自动同步失败:', e);
+        try {
+            const lastSyncTime = localStorage.getItem('gamehub_last_sync_time');
+            const now = Date.now();
+            const oneHour = 60 * 60 * 1000;
+
+            if (!lastSyncTime || (now - parseInt(lastSyncTime)) > oneHour) {
+                console.log('自动同步开始...');
+                try {
+                    await CloudSync.syncFromCloud();
+                    try { localStorage.setItem('gamehub_has_synced', 'true'); } catch(e) {}
+                    try { localStorage.setItem('gamehub_last_sync_time', now.toString()); } catch(e) {}
+                    this.hideGuideBanner();
+                    console.log('自动同步完成');
+                } catch (e) {
+                    console.log('自动同步失败:', e);
+                }
             }
+        } catch(e) {
+            console.log('autoSync跳过（存储不可用）');
         }
     },
 
@@ -222,22 +226,27 @@ const App = {
     },
 
     loadData() {
-        const saved = localStorage.getItem('gamehub_games');
-        const savedId = localStorage.getItem('gamehub_nextId');
-        
-        if (saved) {
-            try {
-                this.games = JSON.parse(saved);
-                this.games.forEach(g => {
-                    g.updateDate = new Date(g.updateDate);
-                });
-                this.nextId = savedId ? parseInt(savedId) : this.games.length + 1;
-                console.log(`已加载 ${this.games.length} 条数据`);
-            } catch (e) {
-                console.error('加载数据失败:', e);
+        try {
+            const saved = localStorage.getItem('gamehub_games');
+            const savedId = localStorage.getItem('gamehub_nextId');
+
+            if (saved) {
+                try {
+                    this.games = JSON.parse(saved);
+                    this.games.forEach(g => {
+                        g.updateDate = new Date(g.updateDate);
+                    });
+                    this.nextId = savedId ? parseInt(savedId) : this.games.length + 1;
+                    console.log(`已加载 ${this.games.length} 条数据`);
+                } catch (e) {
+                    console.error('加载数据失败:', e);
+                    this.loadSampleData();
+                }
+            } else {
                 this.loadSampleData();
             }
-        } else {
+        } catch(e) {
+            console.log('localStorage不可用，加载假数据');
             this.loadSampleData();
         }
     },
@@ -248,8 +257,7 @@ const App = {
             localStorage.setItem('gamehub_nextId', this.nextId.toString());
             console.log('数据已保存');
         } catch (e) {
-            console.error('保存数据失败:', e);
-            this.showToast('保存失败，存储空间可能已满');
+            console.log('saveData跳过（存储不可用）');
         }
     },
 

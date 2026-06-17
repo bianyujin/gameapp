@@ -32,20 +32,24 @@ const CloudSync = {
     },
 
     loadConfig() {
-        const saved = localStorage.getItem('gamehub_cloud_config');
-        if (saved) {
-            this.config = { ...this.config, ...JSON.parse(saved) };
+        try {
+            const saved = localStorage.getItem('gamehub_cloud_config');
+            if (saved) {
+                this.config = { ...this.config, ...JSON.parse(saved) };
+            }
+            this.config.localDataVersion = localStorage.getItem('gamehub_local_data_version') || null;
+        } catch(e) {
+            console.log('loadConfig跳过（存储不可用）');
         }
-        this.config.localDataVersion = localStorage.getItem('gamehub_local_data_version') || null;
     },
 
     saveLocalDataVersion(version) {
         this.config.localDataVersion = version;
-        localStorage.setItem('gamehub_local_data_version', version);
+        try { localStorage.setItem('gamehub_local_data_version', version); } catch(e) {}
     },
 
     saveConfig() {
-        localStorage.setItem('gamehub_cloud_config', JSON.stringify(this.config));
+        try { localStorage.setItem('gamehub_cloud_config', JSON.stringify(this.config)); } catch(e) {}
     },
 
     bindEvents() {
@@ -762,9 +766,9 @@ const CloudSync = {
         console.log('=== syncFromCloud开始 ===');
         
         console.log('清除旧缓存...');
-        localStorage.removeItem('gamehub_games');
-        localStorage.removeItem('gamehub_cached_games');
-        localStorage.removeItem('gamehub_data_version');
+        try { localStorage.removeItem('gamehub_games'); } catch(e) {}
+        try { localStorage.removeItem('gamehub_cached_games'); } catch(e) {}
+        try { localStorage.removeItem('gamehub_data_version'); } catch(e) {}
         
         await this.loadCloudConfig();
         
