@@ -798,7 +798,10 @@ const CloudSync = {
         }
         
         console.log('请求URL:', url);
-        const response = await fetch(url);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 60000);
+        const response = await fetch(url, { signal: controller.signal });
+        clearTimeout(timeoutId);
         console.log('响应状态:', response.status);
         console.log('响应ok:', response.ok);
         
