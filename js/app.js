@@ -455,10 +455,25 @@ const App = {
             games = games.filter(g => this.tableState.filterCategories.has(g.category));
         }
 
-        games = games.filter(g => 
+        games = games.filter(g =>
             parseFloat(g.rating) >= this.tableState.minRating &&
             parseFloat(g.rating) <= this.tableState.maxRating
         );
+
+        // 排序
+        const { sortColumn, sortDirection } = this.tableState;
+        games.sort((a, b) => {
+            let va = a[sortColumn], vb = b[sortColumn];
+            if (sortColumn === 'updateDate') {
+                va = va ? new Date(va).getTime() : 0;
+                vb = vb ? new Date(vb).getTime() : 0;
+            } else if (typeof va === 'string') {
+                va = va.toLowerCase(); vb = (vb || '').toLowerCase();
+            }
+            if (va < vb) return sortDirection === 'asc' ? -1 : 1;
+            if (va > vb) return sortDirection === 'asc' ? 1 : -1;
+            return 0;
+        });
 
         return games;
     },
@@ -1382,6 +1397,12 @@ const App = {
     },
 
     render() {
+        // 全局排序：默认按修改时间倒序（最新在前）
+        this.games.sort((a, b) => {
+            const ta = a.updateDate ? new Date(a.updateDate).getTime() : 0;
+            const tb = b.updateDate ? new Date(b.updateDate).getTime() : 0;
+            return tb - ta;
+        });
         this.renderCarousel();
         this.renderCategories();
         this.renderHomeGames('');
