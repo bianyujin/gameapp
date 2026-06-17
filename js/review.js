@@ -6,7 +6,7 @@ const ReviewSystem = {
     },
 
     loadUser() {
-        const saved = localStorage.getItem('gamehub_current_user');
+        const saved = Storage.getItem('gamehub_current_user');
         if (saved) {
             this.currentUser = JSON.parse(saved);
         }
@@ -14,7 +14,7 @@ const ReviewSystem = {
 
     saveUser() {
         if (this.currentUser) {
-            localStorage.setItem('gamehub_current_user', JSON.stringify(this.currentUser));
+            Storage.setItem('gamehub_current_user', JSON.stringify(this.currentUser));
         }
     },
 
@@ -56,10 +56,10 @@ const ReviewSystem = {
             createdAt: new Date().toISOString()
         };
         
-        let users = JSON.parse(localStorage.getItem('gamehub_users') || '[]');
+        let users = JSON.parse(Storage.getItem('gamehub_users') || '[]');
         if (!users.find(u => u.name === nickname)) {
             users.push(this.currentUser);
-            localStorage.setItem('gamehub_users', JSON.stringify(users));
+            Storage.setItem('gamehub_users', JSON.stringify(users));
         }
         
         this.saveUser();
@@ -139,7 +139,7 @@ const ReviewSystem = {
     },
 
     getUserReview(gameId) {
-        const reviews = JSON.parse(localStorage.getItem('gamehub_reviews') || '[]');
+        const reviews = JSON.parse(Storage.getItem('gamehub_reviews') || '[]');
         return reviews.find(r => r.gameId === gameId && r.userId === this.currentUser?.id);
     },
 
@@ -170,7 +170,7 @@ const ReviewSystem = {
             createdAt: new Date().toISOString()
         };
 
-        let reviews = JSON.parse(localStorage.getItem('gamehub_reviews') || '[]');
+        let reviews = JSON.parse(Storage.getItem('gamehub_reviews') || '[]');
         
         const existingIndex = reviews.findIndex(r => 
             r.gameId === gameId && r.userId === this.currentUser.id
@@ -182,7 +182,7 @@ const ReviewSystem = {
             reviews.push(review);
         }
         
-        localStorage.setItem('gamehub_reviews', JSON.stringify(reviews));
+        Storage.setItem('gamehub_reviews', JSON.stringify(reviews));
         
         document.getElementById('reviewModal').remove();
         App.showToast('评价已提交');
@@ -191,7 +191,7 @@ const ReviewSystem = {
     },
 
     updateGameRating(gameId) {
-        const reviews = JSON.parse(localStorage.getItem('gamehub_reviews') || '[]');
+        const reviews = JSON.parse(Storage.getItem('gamehub_reviews') || '[]');
         const gameReviews = reviews.filter(r => r.gameId === gameId);
         
         if (gameReviews.length > 0) {
@@ -206,7 +206,7 @@ const ReviewSystem = {
     },
 
     getGameReviews(gameId) {
-        const reviews = JSON.parse(localStorage.getItem('gamehub_reviews') || '[]');
+        const reviews = JSON.parse(Storage.getItem('gamehub_reviews') || '[]');
         return reviews.filter(r => r.gameId === gameId).sort((a, b) => 
             new Date(b.createdAt) - new Date(a.createdAt)
         );

@@ -1,3 +1,23 @@
+// 存储适配器：自动降级 localStorage → sessionStorage，防止WebView崩溃
+const Storage = {
+    _store: null,
+    init() {
+        try {
+            const testKey = '__storage_test__';
+            Storage.setItem(testKey, '1');
+            Storage.removeItem(testKey);
+            this._store = localStorage;
+        } catch(e) {
+            console.log('localStorage不可用，降级到sessionStorage');
+            this._store = sessionStorage;
+        }
+    },
+    getItem(key) { try { return this._store ? this._store.getItem(key) : null; } catch(e) { return null; } },
+    setItem(key, val) { try { if (this._store) this._store.setItem(key, val); } catch(e) {} },
+    removeItem(key) { try { if (this._store) this._store.removeItem(key); } catch(e) {} }
+};
+Storage.init();
+
 const App = {
     games: [],
     isAdmin: false,
@@ -33,7 +53,7 @@ const App = {
     nextId: 51,
 
     init() {
-        try { this.isAdmin = localStorage.getItem('gamehub_is_admin') === 'true'; } catch(e) { this.isAdmin = false; }
+        try { this.isAdmin = Storage.getItem('gamehub_is_admin') === 'true'; } catch(e) { this.isAdmin = false; }
         try { this.loadDarkMode(); } catch(e) {}
         this.loadData();
         this.bindEvents();
@@ -79,7 +99,7 @@ const App = {
     },
 
     checkGuideBanner() {
-        const hasSynced = localStorage.getItem('gamehub_has_synced');
+        const hasSynced = Storage.getItem('gamehub_has_synced');
         const guideBanner = document.getElementById('guideBanner');
         
         if (!hasSynced && guideBanner) {
@@ -96,7 +116,7 @@ const App = {
 
     async autoSync() {
         try {
-            const lastSyncTime = localStorage.getItem('gamehub_last_sync_time');
+            const lastSyncTime = Storage.getItem('gamehub_last_sync_time');
             const now = Date.now();
             const oneHour = 60 * 60 * 1000;
 
@@ -104,8 +124,8 @@ const App = {
                 console.log('自动同步开始...');
                 try {
                     await CloudSync.syncFromCloud();
-                    try { localStorage.setItem('gamehub_has_synced', 'true'); } catch(e) {}
-                    try { localStorage.setItem('gamehub_last_sync_time', now.toString()); } catch(e) {}
+                    try { Storage.setItem('gamehub_has_synced', 'true'); } catch(e) {}
+                    try { Storage.setItem('gamehub_last_sync_time', now.toString()); } catch(e) {}
                     this.hideGuideBanner();
                     console.log('自动同步完成');
                 } catch (e) {
@@ -204,7 +224,7 @@ const App = {
     },
 
     loadDarkMode() {
-        const isDarkMode = localStorage.getItem('gamehub_dark_mode') !== 'false';
+        const isDarkMode = Storage.getItem('gamehub_dark_mode') !== 'false';
         if (isDarkMode) {
             document.body.classList.remove('light-mode');
         } else {
@@ -219,17 +239,17 @@ const App = {
     toggleDarkMode(isDark) {
         if (isDark) {
             document.body.classList.remove('light-mode');
-            localStorage.setItem('gamehub_dark_mode', 'true');
+            Storage.setItem('gamehub_dark_mode', 'true');
         } else {
             document.body.classList.add('light-mode');
-            localStorage.setItem('gamehub_dark_mode', 'false');
+            Storage.setItem('gamehub_dark_mode', 'false');
         }
     },
 
     loadData() {
         try {
-            const saved = localStorage.getItem('gamehub_games');
-            const savedId = localStorage.getItem('gamehub_nextId');
+            const saved = Storage.getItem('gamehub_games');
+            const savedId = Storage.getItem('gamehub_nextId');
 
             if (saved) {
                 try {
@@ -254,8 +274,8 @@ const App = {
 
     saveData() {
         try {
-            localStorage.setItem('gamehub_games', JSON.stringify(this.games));
-            localStorage.setItem('gamehub_nextId', this.nextId.toString());
+            Storage.setItem('gamehub_games', JSON.stringify(this.games));
+            Storage.setItem('gamehub_nextId', this.nextId.toString());
             console.log('数据已保存');
         } catch (e) {
             console.log('saveData跳过（存储不可用）');
@@ -828,7 +848,7 @@ const App = {
             g._rawFields = [...fields];
         });
         
-        localStorage.setItem('gamehub_field_order', JSON.stringify(fields));
+        Storage.setItem('gamehub_field_order', JSON.stringify(fields));
         this.saveData();
         
         const container = document.getElementById('rawFieldsContainer');
@@ -1107,6 +1127,25 @@ const App = {
         return new Date(0);
     },
 
+    // 获取游戏的修改时间戳（用于排序），多层兜底
+    getGameDate(game) {
+        // 1. 优先用 updateDate 字段
+        if (game.updateDate) {
+            const d = new Date(game.updateDate);
+            if (!isNaN(d.getTime())) return d.getTime();
+        }
+        // 2. 兜底：从 _rawData 取最后修改时间
+        if (game._rawData) {
+            const raw = game._rawData['最后修改时间'] || game._rawData['最后修改'] || '';
+            if (raw) {
+                const d = this.parseChineseDate(raw);
+                if (d.getTime() > 0) return d.getTime();
+            }
+        }
+        // 3. 最兜底：用 id 越小越旧（先添加的排后面）
+        return game.id || 0;
+    },
+
     // 从标题/分类中提取游戏类型（ACT/RPG/SLG/ADV等）
     extractGameType(str) {
         if (!str) return '其他';
@@ -1142,8 +1181,8 @@ const App = {
 
     clearCache() {
         if (confirm('确定要清除所有数据吗？这将删除所有自定义数据并恢复默认数据。')) {
-            localStorage.removeItem('gamehub_games');
-            localStorage.removeItem('gamehub_nextId');
+            Storage.removeItem('gamehub_games');
+            Storage.removeItem('gamehub_nextId');
             this.games = [];
             this.nextId = 51;
             this.loadSampleData();
@@ -1417,11 +1456,11 @@ const App = {
     },
 
     render() {
-        // 首次加载时默认按修改时间倒序（仅当用户未手动排序时）
+        // 默认始终按修改时间倒序（最新在前），除非用户手动选了其他排序
         if (!this._userSorted) {
             this.games.sort((a, b) => {
-                const ta = a.updateDate ? new Date(a.updateDate).getTime() : 0;
-                const tb = b.updateDate ? new Date(b.updateDate).getTime() : 0;
+                const ta = this.getGameDate(a);
+                const tb = this.getGameDate(b);
                 return tb - ta;
             });
         }
@@ -1603,7 +1642,7 @@ const App = {
 
     async checkForUpdates() {
         const githubUrl = 'https://cdn.jsdelivr.net/gh/bianyujin/gameapp@v1.00/games.json';
-        const localVersion = localStorage.getItem('gamehub_local_data_version');
+        const localVersion = Storage.getItem('gamehub_local_data_version');
         
         try {
             const response = await fetch(githubUrl, { method: 'HEAD' });
@@ -1613,16 +1652,16 @@ const App = {
             const etag = response.headers.get('ETag');
             const remoteVersion = lastModified || etag || Date.now().toString();
             
-            const lastCheckTime = localStorage.getItem('gamehub_last_update_check');
+            const lastCheckTime = Storage.getItem('gamehub_last_update_check');
             const now = Date.now();
             
             if (lastCheckTime && (now - parseInt(lastCheckTime)) < 3600000) {
                 return;
             }
             
-            localStorage.setItem('gamehub_last_update_check', now.toString());
+            Storage.setItem('gamehub_last_update_check', now.toString());
             
-            const saved = localStorage.getItem('gamehub_games');
+            const saved = Storage.getItem('gamehub_games');
             if (!saved) {
                 this.showUpdatePrompt();
                 return;

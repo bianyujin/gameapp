@@ -33,11 +33,11 @@ const CloudSync = {
 
     loadConfig() {
         try {
-            const saved = localStorage.getItem('gamehub_cloud_config');
+            const saved = Storage.getItem('gamehub_cloud_config');
             if (saved) {
                 this.config = { ...this.config, ...JSON.parse(saved) };
             }
-            this.config.localDataVersion = localStorage.getItem('gamehub_local_data_version') || null;
+            this.config.localDataVersion = Storage.getItem('gamehub_local_data_version') || null;
         } catch(e) {
             console.log('loadConfig跳过（存储不可用）');
         }
@@ -45,11 +45,11 @@ const CloudSync = {
 
     saveLocalDataVersion(version) {
         this.config.localDataVersion = version;
-        try { localStorage.setItem('gamehub_local_data_version', version); } catch(e) {}
+        try { Storage.setItem('gamehub_local_data_version', version); } catch(e) {}
     },
 
     saveConfig() {
-        try { localStorage.setItem('gamehub_cloud_config', JSON.stringify(this.config)); } catch(e) {}
+        try { Storage.setItem('gamehub_cloud_config', JSON.stringify(this.config)); } catch(e) {}
     },
 
     bindEvents() {
@@ -161,7 +161,7 @@ const CloudSync = {
                             <div class="form-group">
                                 <label class="form-label">Firebase数据库URL（快速配置）</label>
                                 <input type="text" id="firebaseUrl" class="form-input"
-                                       value="${this.config.firebaseConfig?.databaseURL || localStorage.getItem('gamehub_firebase_url') || ''}"
+                                       value="${this.config.firebaseConfig?.databaseURL || Storage.getItem('gamehub_firebase_url') || ''}"
                                        placeholder="https://your-project.firebaseio.com">
                                 <p class="form-hint">只需输入数据库URL即可读取数据</p>
                             </div>
@@ -238,7 +238,7 @@ const CloudSync = {
         
         if (firebaseUrl) {
             this.config.firebaseConfig = { databaseURL: firebaseUrl };
-            try { localStorage.setItem('gamehub_firebase_url', firebaseUrl); } catch(e) {}
+            try { Storage.setItem('gamehub_firebase_url', firebaseUrl); } catch(e) {}
         } else if (firebaseConfigStr) {
             try {
                 this.config.firebaseConfig = JSON.parse(firebaseConfigStr);
@@ -275,6 +275,7 @@ const CloudSync = {
                 const games = rawGames.map(g => this.mapGameFields(g));
                 this.normalizeAllFields(games);
                 App.games = games;
+                App._userSorted = false;
                 App.nextId = games.length + 1;
                 App.saveData();
                 App.render();
@@ -282,7 +283,7 @@ const CloudSync = {
                 this.config.firebaseConfig = { databaseURL: url };
                 this.config.lastSync = Date.now();
                 this.saveConfig();
-                try { localStorage.setItem('gamehub_firebase_url', url); } catch(e) {}
+                try { Storage.setItem('gamehub_firebase_url', url); } catch(e) {}
                 
                 App.showToast(`✅ 已加载 ${games.length} 条数据`);
             } else {
@@ -456,7 +457,7 @@ const CloudSync = {
             return ia - ib;
         });
         
-        try { localStorage.setItem('gamehub_field_order', JSON.stringify(globalFields)); } catch(e) {}
+        try { Storage.setItem('gamehub_field_order', JSON.stringify(globalFields)); } catch(e) {}
         
         games.forEach(g => {
             g._rawFields = [...globalFields];
@@ -474,7 +475,7 @@ const CloudSync = {
     },
 
     saveFieldOrder(fields) {
-        try { localStorage.setItem('gamehub_field_order', JSON.stringify(fields)); } catch(e) {}
+        try { Storage.setItem('gamehub_field_order', JSON.stringify(fields)); } catch(e) {}
         App.globalFields = fields;
         App.games.forEach(g => {
             g._rawFields = [...fields];
@@ -598,6 +599,7 @@ const CloudSync = {
                 }).filter(g => g !== null);
 
                 App.games = games;
+                App._userSorted = false;
                 App.nextId = games.length + 1;
                 App.saveData();
                 App.render();
@@ -766,9 +768,9 @@ const CloudSync = {
         console.log('=== syncFromCloud开始 ===');
         
         console.log('清除旧缓存...');
-        try { localStorage.removeItem('gamehub_games'); } catch(e) {}
-        try { localStorage.removeItem('gamehub_cached_games'); } catch(e) {}
-        try { localStorage.removeItem('gamehub_data_version'); } catch(e) {}
+        try { Storage.removeItem('gamehub_games'); } catch(e) {}
+        try { Storage.removeItem('gamehub_cached_games'); } catch(e) {}
+        try { Storage.removeItem('gamehub_data_version'); } catch(e) {}
         
         await this.loadCloudConfig();
         
@@ -837,6 +839,7 @@ const CloudSync = {
             
             this.normalizeAllFields(games);
             App.games = games;
+            App._userSorted = false;
             App.nextId = games.length + 1;
             App.saveData();
             App.render();
@@ -877,6 +880,7 @@ const CloudSync = {
             const games = data.map(g => this.mapGameFields(g));
             this.normalizeAllFields(games);
             App.games = games;
+            App._userSorted = false;
             App.nextId = games.length + 1;
             App.saveData();
             App.render();

@@ -11,7 +11,7 @@ const AdminSystem = {
     },
 
     loadConfig() {
-        const saved = localStorage.getItem('gamehub_admin_config');
+        const saved = Storage.getItem('gamehub_admin_config');
         if (saved) {
             this.config = { ...this.config, ...JSON.parse(saved) };
         }
@@ -22,11 +22,11 @@ const AdminSystem = {
     },
 
     saveConfig() {
-        localStorage.setItem('gamehub_admin_config', JSON.stringify(this.config));
+        Storage.setItem('gamehub_admin_config', JSON.stringify(this.config));
     },
 
     checkAdminStatus() {
-        this.config.isAdmin = localStorage.getItem('gamehub_is_admin') === 'true';
+        this.config.isAdmin = Storage.getItem('gamehub_is_admin') === 'true';
         if (typeof App !== 'undefined') {
             App.isAdmin = this.config.isAdmin;
         }
@@ -35,7 +35,7 @@ const AdminSystem = {
     login(password) {
         if (password === this.config.adminPassword) {
             this.config.isAdmin = true;
-            localStorage.setItem('gamehub_is_admin', 'true');
+            Storage.setItem('gamehub_is_admin', 'true');
             App.isAdmin = true;
             return true;
         }
@@ -44,7 +44,7 @@ const AdminSystem = {
 
     logout() {
         this.config.isAdmin = false;
-        localStorage.removeItem('gamehub_is_admin');
+        Storage.removeItem('gamehub_is_admin');
         App.isAdmin = false;
     },
 
@@ -83,7 +83,7 @@ const AdminSystem = {
         const isValid = await CloudSync.verifyAdminPassword(password);
         if (isValid) {
             this.config.isAdmin = true;
-            localStorage.setItem('gamehub_is_admin', 'true');
+            Storage.setItem('gamehub_is_admin', 'true');
             App.isAdmin = true;
             this.closeAdminLogin();
             App.showToast('✅ 管理员登录成功');
@@ -205,17 +205,17 @@ const AdminSystem = {
     },
 
     getReviewCount() {
-        const reviews = JSON.parse(localStorage.getItem('gamehub_reviews') || '[]');
+        const reviews = JSON.parse(Storage.getItem('gamehub_reviews') || '[]');
         return reviews.length;
     },
 
     getUserCount() {
-        const users = JSON.parse(localStorage.getItem('gamehub_users') || '[]');
+        const users = JSON.parse(Storage.getItem('gamehub_users') || '[]');
         return users.length;
     },
 
     renderRecentReviews() {
-        const reviews = JSON.parse(localStorage.getItem('gamehub_reviews') || '[]');
+        const reviews = JSON.parse(Storage.getItem('gamehub_reviews') || '[]');
         if (reviews.length === 0) {
             return '<p class="no-data">暂无评论</p>';
         }
@@ -236,9 +236,9 @@ const AdminSystem = {
     deleteReview(id) {
         if (!confirm('确定删除此评论？')) return;
         
-        let reviews = JSON.parse(localStorage.getItem('gamehub_reviews') || '[]');
+        let reviews = JSON.parse(Storage.getItem('gamehub_reviews') || '[]');
         reviews = reviews.filter(r => r.id !== id);
-        localStorage.setItem('gamehub_reviews', JSON.stringify(reviews));
+        Storage.setItem('gamehub_reviews', JSON.stringify(reviews));
         
         App.showToast('评论已删除');
         this.closeAdminPanel();
@@ -248,8 +248,8 @@ const AdminSystem = {
     exportAllData() {
         const data = {
             games: App.games,
-            reviews: JSON.parse(localStorage.getItem('gamehub_reviews') || '[]'),
-            users: JSON.parse(localStorage.getItem('gamehub_users') || '[]'),
+            reviews: JSON.parse(Storage.getItem('gamehub_reviews') || '[]'),
+            users: JSON.parse(Storage.getItem('gamehub_users') || '[]'),
             exportDate: new Date().toISOString()
         };
 
@@ -311,11 +311,11 @@ const AdminSystem = {
                 }
                 
                 if (data.reviews) {
-                    localStorage.setItem('gamehub_reviews', JSON.stringify(data.reviews));
+                    Storage.setItem('gamehub_reviews', JSON.stringify(data.reviews));
                 }
                 
                 if (data.users) {
-                    localStorage.setItem('gamehub_users', JSON.stringify(data.users));
+                    Storage.setItem('gamehub_users', JSON.stringify(data.users));
                 }
                 
                 App.render();
