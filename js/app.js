@@ -1325,7 +1325,8 @@ const App = {
     // ========== 工具方法 ==========
     extractGameType(str) {
         if (!str) return '其他';
-        const match = str.match(/(?:【|\[|\/)(ACT|RPG|SLG|ADV|SIM|PUZ|STG|TBS|RTS|FTG|SPG|VN|TD|SRPG|ARPG|MMO|FPS|TPS|RAC|MUS|TAB|PZL|GAL)/i);
+        // 宽松匹配：直接搜类型关键词，不限前缀
+        const match = str.match(/\b(ACT|RPG|SLG|ADV|SIM|PUZ|STG|TBS|RTS|FTG|SPG|VN|TD|SRPG|ARPG|MMO|FPS|TPS|RAC|MUS|TAB|PZL|GAL)\b/i);
         return match ? match[1].toUpperCase() : '其他';
     },
 
