@@ -767,11 +767,6 @@ const CloudSync = {
         App.showToast('同步中...');
         console.log('=== syncFromCloud开始 ===');
         
-        console.log('清除旧缓存...');
-        try { Storage.removeItem('gamehub_games'); } catch(e) {}
-        try { Storage.removeItem('gamehub_cached_games'); } catch(e) {}
-        try { Storage.removeItem('gamehub_data_version'); } catch(e) {}
-        
         await this.loadCloudConfig();
         
         if (!this.config.gamesDataUrl) {
@@ -843,6 +838,9 @@ const CloudSync = {
             App.nextId = games.length + 1;
             App.saveData();
             App.render();
+            if (App._coverEnabled) {
+                setTimeout(() => App.preloadCoverUrls(), 500);
+            }
             
             this.saveLocalDataVersion(this.config.gamesDataVersion);
             

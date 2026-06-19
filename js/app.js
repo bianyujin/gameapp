@@ -1171,6 +1171,97 @@ const App = {
         return null;
     },
 
+    _previewCache: new Map(),
+
+    extractDirectImageUrls(text) {
+        if (!text) return [];
+        const regex = /https?:\/\/[^\s,，;；\n\r|'"<>]+?\.(?:jpe?g|png|gif|webp|bmp)(?:\?[^\s,，;；\n\r|'"<>]*)?/gi;
+        return [...new Set(text.match(regex) || [])];
+    },
+
+    extractAllHttpUrls(text) {
+        if (!text) return [];
+        const regex = /https?:\/\/[^\s,，;；\n\r|'"<>]+/gi;
+        return [...new Set(text.match(regex) || [])];
+    },
+
+    async fetchAlbumImages(pageUrl) {
+        let html = null;
+        try {
+            const resp = await fetch(pageUrl, { cache: 'no-cache', mode: 'cors' });
+            if (resp.ok) html = await resp.text();
+        } catch(e) {}
+        if (!html) {
+            try {
+                const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(pageUrl);
+                const resp = await fetch(proxyUrl, { cache: 'no-cache' });
+                if (resp.ok) html = await resp.text();
+            } catch(e) {}
+        }
+        if (!html) return [];
+        const imgs = [];
+        const patterns = [
+            /https?:\/\/[^"'\s>]+\.(?:jpe?g|png|gif|webp|bmp)(?:\?[^"'\s>]*)?/gi,
+            /https?:\/\/i\.postimg\.cc\/[^"'\s>]+/gi,
+            /https?:\/\/(?:i\.)?imgbox\.com\/[^"'\s>]+\.(?:jpe?g|png|gif|webp)/gi
+        ];
+        patterns.forEach(p => { let m; while ((m = p.exec(html)) !== null) imgs.push(m[0]); });
+        return [...new Set(imgs)];
+    },
+
+    async expandAlbumUrl(url) {
+        const lower = url.toLowerCase();
+        if (lower.includes('/album/') || lower.includes('/gallery/') ||
+            lower.includes('postimg.cc') || lower.includes('imgbox.com')) {
+            return await this.fetchAlbumImages(url);
+        }
+        return [];
+    },
+
+    async resolvePreviewUrls(previewText) {
+        if (!previewText) return [];
+        const cached = this._previewCache.get(previewText);
+        if (cached) return cached;
+
+        let urls = this.extractDirectImageUrls(previewText);
+        if (urls.length > 0) {
+            this._previewCache.set(previewText, urls);
+            return urls;
+        }
+
+        const allUrls = this.extractAllHttpUrls(previewText);
+        const albumUrls = allUrls.filter(u => !urls.includes(u));
+        for (const albumUrl of albumUrls) {
+            try {
+                const expanded = await this.expandAlbumUrl(albumUrl);
+                urls = urls.concat(expanded);
+            } catch(e) {}
+        }
+        urls = [...new Set(urls.filter(Boolean))];
+        this._previewCache.set(previewText, urls);
+        return urls;
+    },
+
+    async populateCoverUrls(game) {
+        const previewText = this.getPreviewUrl(game);
+        if (!previewText) { game.coverUrls = []; return; }
+        const cached = this._previewCache.get(previewText);
+        if (cached && cached.length > 0) { game.coverUrls = cached; return; }
+        try {
+            const urls = await this.resolvePreviewUrls(previewText);
+            game.coverUrls = urls;
+        } catch(e) { game.coverUrls = []; }
+    },
+
+    async preloadCoverUrls() {
+        const batchSize = 5;
+        for (let i = 0; i < this.games.length; i += batchSize) {
+            const batch = this.games.slice(i, i + batchSize);
+            await Promise.all(batch.map(g => this.populateCoverUrls(g)));
+        }
+        this.render();
+    },
+
     renderTable() {
         const games = this.getFilteredGames();
         const total = games.length;
