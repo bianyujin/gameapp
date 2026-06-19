@@ -4,11 +4,12 @@ const Storage = {
     init() {
         try {
             const testKey = '__storage_test__';
-            Storage.setItem(testKey, '1');
-            Storage.removeItem(testKey);
+            localStorage.setItem(testKey, '1');
+            localStorage.removeItem(testKey);
             this._store = localStorage;
+            console.log('[Storage] 使用 localStorage');
         } catch(e) {
-            console.log('localStorage不可用，降级到sessionStorage');
+            console.log('[Storage] localStorage不可用，降级到sessionStorage');
             this._store = sessionStorage;
         }
     },
@@ -529,7 +530,7 @@ const App = {
             <div class="game-card" data-index="${gameIndex}" onclick="App.editGameByIndex(${gameIndex})">
                 <div class="game-cover" style="background: ${gradient};">
                     ${coverUrl
-                        ? `<img src="${coverUrl}" alt="" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" /><span style="display:none;">${typeIcon}</span>`
+                        ? `<img class="cover-img" src="${coverUrl}" alt="" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" /><span style="display:none;">${typeIcon}</span>`
                         : typeIcon
                     }
                 </div>
@@ -762,6 +763,13 @@ const App = {
                         <button class="close-btn" onclick="App.closeEditModal()">&times;</button>
                     </div>
                     <div class="modal-body">
+                        ${(() => {
+                            const coverUrl = this.getGameCoverUrl(game);
+                            if (coverUrl) {
+                                return `<div style="margin-bottom:16px;border-radius:12px;overflow:hidden;max-height:300px;"><img src="${coverUrl}" style="width:100%;height:auto;object-fit:cover;display:block;" onerror="this.parentElement.style.display='none'" /></div>`;
+                            }
+                            return '';
+                        })()}
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                             <div class="form-group">
                                 <label class="form-label">标题</label>
@@ -1283,7 +1291,7 @@ const App = {
             <div class="game-card" data-index="${gameIndex}" onclick="App.editGameByIndex(${gameIndex})">
                 <div class="game-cover" style="background: ${gradient};">
                     ${coverUrl
-                        ? `<img src="${coverUrl}" alt="" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" /><span style="display:none;">${typeIcon}</span>`
+                        ? `<img class="cover-img" src="${coverUrl}" alt="" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" /><span style="display:none;">${typeIcon}</span>`
                         : typeIcon
                     }
                 </div>
