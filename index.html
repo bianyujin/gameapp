@@ -23,13 +23,28 @@
                             <span style="font-size: 24px;">📖</span>
                             <div>
                                 <div style="font-weight: 600; color: white; font-size: 14px;">欢迎来到 GAMEACG</div>
-                                <div style="color: rgba(255,255,255,0.9); font-size: 12px; margin-top: 4px;">首次使用需要在【我的】页面手动同步数据。当前还在建造中，可能存在bug，有问题可以公众号反馈或QQ反馈。</div>
+                                <div style="color: rgba(255,255,255,0.9); font-size: 12px; margin-top: 4px;">首次使用需要在【我的】页面手动同步数据。有问题可以公众号反馈或QQ反馈。</div>
                             </div>
                         </div>
                         <button onclick="App.hideGuideBanner()" style="background: rgba(255,255,255,0.2); border: none; color: white; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;">知道了</button>
                     </div>
                 </div>
+                <div id="announcementSection" style="background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%); border-radius: 12px; padding: 14px 16px; margin-bottom: 16px;">
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+                        <span style="font-size:16px;">📢</span>
+                        <span style="font-weight:600;color:#e2e8f0;font-size:14px;">更新日志</span>
+                    </div>
+                    <div style="color:#94a3b8;font-size:12px;line-height:1.8;">
+                        <div>🆕 新增封面预览图功能（beta），可预览游戏封面</div>
+                        <div>🔄 新增自动同步功能（beta），开启后自动缓存最新数据</div>
+                        <div>📦 数据库更新至 1063 条，覆盖 658 个游戏封面图</div>
+                        <div>🎨 优化图片显示效果和加载速度</div>
+                        <div>🛠️ 修复多项已知问题，提升稳定性</div>
+                    </div>
+                    <div style="color:#6366f1;font-size:11px;margin-top:8px;">更新于 2025.06</div>
+                </div>
                 <div class="random-image-section">
+                    <div style="font-size:12px;color:#64748b;margin-bottom:6px;">📷 P站随机图片</div>
                     <div class="random-image-container" id="randomImageContainer">
                         <img id="randomImage" src="" alt="随机图片" style="display: none;">
                         <div class="image-placeholder" id="imagePlaceholder">
@@ -107,7 +122,7 @@
                         </div>
                         <div class="settings-item">
                             <span class="settings-icon">🔄</span>
-                            <span class="settings-label">自动同步数据</span>
+                            <span class="settings-label">自动同步数据 <span style="font-size:10px;color:#f59e0b;background:#f59e0b20;padding:1px 5px;border-radius:3px;">beta</span></span>
                             <label class="switch">
                                 <input type="checkbox" id="autoSyncToggle">
                                 <span class="slider"></span>
@@ -126,7 +141,7 @@
                         </div>
                         <div class="settings-item">
                             <span class="settings-icon">🖼️</span>
-                            <span class="settings-label">封面预览图</span>
+                            <span class="settings-label">封面预览图 <span style="font-size:10px;color:#f59e0b;background:#f59e0b20;padding:1px 5px;border-radius:3px;">beta</span></span>
                             <label class="switch">
                                 <input type="checkbox" id="coverPreviewToggle">
                                 <span class="slider"></span>

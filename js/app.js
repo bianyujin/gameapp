@@ -1499,24 +1499,23 @@ const App = {
         this.render();
     },
 
-    // 年龄验证弹窗
+    // 验证弹窗（密码验证）
     showAgeVerifyModal() {
         const modalHtml = `
             <div id="ageVerifyModal" class="modal">
                 <div class="modal-backdrop"></div>
                 <div class="modal-content" style="max-width:340px;">
                     <div class="modal-header">
-                        <h3 class="modal-title">年龄验证</h3>
+                        <h3 class="modal-title">⚠️ 内容提示</h3>
                     </div>
                     <div class="modal-body" style="text-align:center;">
-                        <p style="color:#f87171;font-size:13px;margin-bottom:12px;">封面预览图可能包含敏感内容</p>
-                        <p style="font-size:14px;color:#94a3b8;margin-bottom:16px;">请输入您的年龄以继续</p>
+                        <p style="color:#f87171;font-size:13px;margin-bottom:12px;">封面预览图可能包含敏感内容，确认要打开吗？</p>
+                        <p style="font-size:12px;color:#64748b;margin-bottom:16px;">可前往 <a href="https://vlink.cc/bayj" target="_blank" style="color:#6366f1;">vlink.cc/bayj</a> 获取密码</p>
                         <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:16px;">
-                            <input type="number" id="ageInput" min="1" max="120" placeholder="年龄"
-                                   style="width:80px;padding:8px 12px;border:1px solid #334155;border-radius:8px;background:#0f172a;color:#e2e8f0;text-align:center;font-size:16px;" />
-                            <span style="color:#94a3b8;">岁</span>
+                            <input type="password" id="ageInput" placeholder="请输入密码"
+                                   style="width:180px;padding:8px 12px;border:1px solid #334155;border-radius:8px;background:#0f172a;color:#e2e8f0;text-align:center;font-size:14px;" />
                         </div>
-                        <div id="ageError" style="color:#f87171;font-size:12px;display:none;">您未满18岁，无法开启此功能</div>
+                        <div id="ageError" style="color:#f87171;font-size:12px;display:none;"></div>
                     </div>
                     <div class="modal-footer" style="justify-content:center;gap:12px;">
                         <button class="btn btn-secondary" onclick="document.getElementById('ageVerifyModal').remove()">取消</button>
@@ -1534,20 +1533,18 @@ const App = {
     verifyAge() {
         const input = document.getElementById('ageInput');
         const err = document.getElementById('ageError');
-        const age = parseInt(input?.value, 10);
-        if (isNaN(age) || age < 1 || age > 120) {
-            if (err) err.style.display = 'block'; err.textContent = '请输入有效年龄';
+        const val = (input?.value || '').trim();
+        if (!val) {
+            if (err) { err.style.display = 'block'; err.textContent = '请输入密码'; }
             return;
         }
-        if (age >= 18) {
+        if (val === '彼岸余烬') {
             document.getElementById('ageVerifyModal').remove();
             this.setCoverEnabled(true);
             this.updateCoverToggleUI(true);
             App.showToast('封面预览已开启');
         } else {
-            if (err) err.style.display = 'block'; err.textContent = '您未满18岁，无法开启此功能';
-            this.setCoverEnabled(false);
-            this.updateCoverToggleUI(false);
+            if (err) { err.style.display = 'block'; err.textContent = '密码错误。密码是4个字。不知道可前往上方网址查看，这还不知道的说明你真得关注我了>_<'; }
         }
     },
 
