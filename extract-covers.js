@@ -88,7 +88,8 @@ function fetchUrl(url, timeoutMs = 10000) {
 
 // ========== 主流程 ==========
 async function main() {
-    console.log('读取 games.json...');
+    const forceMode = process.argv.includes('--force');
+    console.log(`读取 games.json...${forceMode ? ' (强制模式: 重新提取所有封面)' : ''}`);
     const raw = fs.readFileSync(GAMES_FILE, 'utf-8');
     const games = JSON.parse(raw);
 
@@ -102,8 +103,8 @@ async function main() {
         const game = games[i];
         total++;
 
-        // 跳过已有 coverUrls 的
-        if (game.coverUrls && Array.isArray(game.coverUrls) && game.coverUrls.length > 0) {
+        // 跳过已有 coverUrls 的（--force 模式下不跳过）
+        if (!forceMode && game.coverUrls && Array.isArray(game.coverUrls) && game.coverUrls.length > 0) {
             skipped++;
             continue;
         }

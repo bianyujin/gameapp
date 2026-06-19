@@ -2,13 +2,16 @@
  * 一键更新脚本
  * 
  * 用法:
- *   1. 从Notion导出CSV文件
- *   2. 把CSV文件放到本仓库根目录（或指定路径）
- *   3. 运行: node update.js [csv文件路径]
- *      例如: node update.js mydata.csv
- *      或:   node update.js（自动查找最新的CSV文件）
+ *   node update.js [csv文件名] [选项]
  * 
- * 脚本会自动完成: CSV → JSON → 提取封面图 → git commit → git push
+ * 选项:
+ *   --no-covers    跳过封面图提取（只更新数据）
+ *   --force-covers 强制重新提取所有封面图（包括已有的）
+ * 
+ * 示例:
+ *   node update.js mydata.csv                # 更新数据+提取新封面图
+ *   node update.js mydata.csv --no-covers    # 只更新数据，不提取封面
+ *   node update.js --force-covers            # 用最新CSV+强制重新提取所有封面
  */
 
 const fs = require('fs');
@@ -96,8 +99,17 @@ function mapRowToGame(row, headers) {
 async function main() {
     console.log('=== GAMEACG 一键更新 ===\n');
 
+    // 解析参数
+    const args = process.argv.slice(2);
+    const noCovers = args.includes('--no-covers');
+    const forceCovers = args.includes('--force-covers');
+    const csvArg = args.find(a => !a.startsWith('--'));
+
+    if (noCovers) console.log('📌 模式: 跳过封面图提取');
+    if (forceCovers) console.log('📌 模式: 强制重新提取所有封面图');
+
     // 1. 查找 CSV 文件
-    let csvPath = process.argv[2];
+    let csvPath = csvArg;
     if (!csvPath) {
         // 自动查找最新的 CSV 文件
         const csvFiles = fs.readdirSync(ROOT)
@@ -160,12 +172,17 @@ async function main() {
     fs.writeFileSync(GAMES_FILE, JSON.stringify(games, null, 2), 'utf-8');
     console.log(`\n✅ 已写入 ${games.length} 条数据到 games.json`);
 
-    // 7. 提取封面图（跳过已有 coverUrls 的）
-    console.log('\n正在提取封面图...');
-    try {
-        execSync('node extract-covers.js', { cwd: ROOT, stdio: 'inherit' });
-    } catch(e) {
-        console.log('封面图提取跳过（可稍后单独运行 node extract-covers.js）');
+    // 7. 提取封面图
+    if (noCovers) {
+        console.log('\n⏭️  跳过封面图提取');
+    } else {
+        console.log('\n正在提取封面图...');
+        const coverCmd = forceCovers ? 'node extract-covers.js --force' : 'node extract-covers.js';
+        try {
+            execSync(coverCmd, { cwd: ROOT, stdio: 'inherit' });
+        } catch(e) {
+            console.log('封面图提取跳过（可稍后单独运行）');
+        }
     }
 
     // 8. Git 操作
