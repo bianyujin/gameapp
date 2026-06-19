@@ -154,10 +154,12 @@ const App = {
 
             // 自动同步开启：正常同步流程
             const lastSyncTime = Storage.getItem('gamehub_last_sync_time');
+            const hasGameData = !!Storage.getItem('gamehub_games');
             const now = Date.now();
             const oneHour = 60 * 60 * 1000;
 
-            if (!lastSyncTime || (now - parseInt(lastSyncTime)) > oneHour) {
+            // 没有本地缓存数据时必须同步（cookie放不下大数据，重启后需要重新拉取）
+            if (!hasGameData || !lastSyncTime || (now - parseInt(lastSyncTime)) > oneHour) {
                 console.log('自动同步开始...');
                 try {
                     await CloudSync.syncFromCloud();
