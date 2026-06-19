@@ -1,17 +1,37 @@
-// 存储适配器：自动降级 localStorage → sessionStorage，防止WebView崩溃
+// 存储适配器：localStorage → cookie → sessionStorage，确保跨WebView持久化
 const Storage = {
     _store: null,
+    _type: '',
     init() {
+        // 优先: localStorage
         try {
             const testKey = '__storage_test__';
             localStorage.setItem(testKey, '1');
             localStorage.removeItem(testKey);
             this._store = localStorage;
+            this._type = 'localStorage';
             console.log('[Storage] 使用 localStorage');
-        } catch(e) {
-            console.log('[Storage] localStorage不可用，降级到sessionStorage');
-            this._store = sessionStorage;
-        }
+            return;
+        } catch(e) {}
+        // 次选: cookie (WebView中比sessionStorage更持久)
+        try {
+            document.cookie = '__ct=1;max-age=31536000;path=/';
+            if (document.cookie.includes('__ct=1')) {
+                document.cookie = '__ct=;max-age=0;path=/';
+                this._store = {
+                    getItem(k) { const m = document.cookie.match(new RegExp('(?:^|; )' + k + '=([^;]*)')); return m ? decodeURIComponent(m[1]) : null; },
+                    setItem(k, v) { document.cookie = encodeURIComponent(k) + '=' + encodeURIComponent(v) + ';max-age=31536000;path=/'; },
+                    removeItem(k) { document.cookie = encodeURIComponent(k) + '=;max-age=0;path=/'; }
+                };
+                this._type = 'cookie';
+                console.log('[Storage] 使用 cookie');
+                return;
+            }
+        } catch(e) {}
+        // 最后: sessionStorage (不跨重启)
+        this._store = sessionStorage;
+        this._type = 'sessionStorage';
+        console.log('[Storage] 降级到 sessionStorage');
     },
     getItem(key) { try { return this._store ? this._store.getItem(key) : null; } catch(e) { return null; } },
     setItem(key, val) { try { if (this._store) this._store.setItem(key, val); } catch(e) {} },
