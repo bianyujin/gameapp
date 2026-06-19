@@ -2,8 +2,8 @@ name: Sync from Notion
 
 on:
   schedule:
-    - cron: '0 2 * * *'  # 每天凌晨2点自动检查
-  workflow_dispatch:       # 支持手动触发
+    - cron: '0 2 * * *'
+  workflow_dispatch:
 
 jobs:
   sync:
@@ -13,10 +13,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-
-      - name: Install dependencies
-        run: npm install node-fetch@2 --save
+          node-version: '22'
 
       - name: Fetch data from Notion
         env:
