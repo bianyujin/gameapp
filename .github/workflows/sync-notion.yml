@@ -1,0 +1,42 @@
+name: Sync from Notion
+
+on:
+  schedule:
+    - cron: '0 2 * * *'  # 每天凌晨2点自动检查
+  workflow_dispatch:       # 支持手动触发
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install node-fetch@2 --save
+
+      - name: Fetch data from Notion
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
+        run: node scripts/sync-notion.js
+
+      - name: Extract cover images
+        run: node extract-covers.js
+
+      - name: Check for changes
+        id: changes
+        run: |
+          git diff --quiet games.json && echo "changed=false" >> $GITHUB_OUTPUT || echo "changed=true" >> $GITHUB_OUTPUT
+
+      - name: Commit and push
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add games.json
+          git commit -m "sync: Notion数据自动更新 $(date +%Y-%m-%d)"
+          git push
