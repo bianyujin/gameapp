@@ -19,7 +19,7 @@ const Storage = {
             if (document.cookie.includes('__ct=1')) {
                 document.cookie = '__ct=;max-age=0;path=/';
                 this._store = {
-                    getItem(k) { const m = document.cookie.match(new RegExp('(?:^|; )' + k + '=([^;]*)')); return m ? decodeURIComponent(m[1]) : null; },
+                    getItem(k) { const m = document.cookie.match(new RegExp('(?:^|; )' + encodeURIComponent(k) + '=([^;]*)')); return m ? decodeURIComponent(m[1]) : null; },
                     setItem(k, v) { document.cookie = encodeURIComponent(k) + '=' + encodeURIComponent(v) + ';max-age=31536000;path=/'; },
                     removeItem(k) { document.cookie = encodeURIComponent(k) + '=;max-age=0;path=/'; }
                 };
@@ -159,7 +159,8 @@ const App = {
             const oneHour = 60 * 60 * 1000;
 
             // 没有本地缓存数据时必须同步（cookie放不下大数据，重启后需要重新拉取）
-            if (!hasGameData || !lastSyncTime || (now - parseInt(lastSyncTime)) > oneHour) {
+            const syncTime = parseInt(lastSyncTime) || 0;
+            if (!hasGameData || !lastSyncTime || isNaN(syncTime) || (now - syncTime) > oneHour) {
                 console.log('自动同步开始...');
                 try {
                     await CloudSync.syncFromCloud();
@@ -1512,7 +1513,7 @@ const App = {
                         <p style="color:#f87171;font-size:13px;margin-bottom:12px;">封面预览图可能包含敏感内容，确认要打开吗？</p>
                         <p style="font-size:12px;color:#64748b;margin-bottom:16px;">可前往 <a href="https://vlink.cc/bayj" target="_blank" style="color:#6366f1;">vlink.cc/bayj</a> 获取密码</p>
                         <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:16px;">
-                            <input type="password" id="ageInput" placeholder="请输入密码"
+                            <input type="text" inputmode="text" autocomplete="off" id="ageInput" placeholder="请输入密码"
                                    style="width:180px;padding:8px 12px;border:1px solid #334155;border-radius:8px;background:#0f172a;color:#e2e8f0;text-align:center;font-size:14px;" />
                         </div>
                         <div id="ageError" style="color:#f87171;font-size:12px;display:none;"></div>
@@ -1539,7 +1540,8 @@ const App = {
             return;
         }
         if (val === '彼岸余烬') {
-            document.getElementById('ageVerifyModal').remove();
+            const modal = document.getElementById('ageVerifyModal');
+            if (modal) modal.remove();
             this.setCoverEnabled(true);
             this.updateCoverToggleUI(true);
             App.showToast('封面预览已开启');

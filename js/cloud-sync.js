@@ -270,7 +270,7 @@ const CloudSync = {
             const response = await fetch(`${url}/games.json`);
             const data = await response.json();
             
-            if (data) {
+        if (data !== null && data !== undefined) {
                 const rawGames = Object.values(data);
                 const games = rawGames.map(g => this.mapGameFields(g));
                 this.normalizeAllFields(games);
@@ -777,7 +777,6 @@ const CloudSync = {
             console.log('开始同步游戏数据...');
             await this.syncFromGamesJson();
             console.log('同步成功!');
-            App.showToast('同步成功');
             console.log('=== 同步完成 ===');
         } catch (e) {
             console.error('同步失败:', e);
@@ -797,8 +796,12 @@ const CloudSync = {
         console.log('请求URL:', url);
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 60000);
-        const response = await fetch(url, { signal: controller.signal });
-        clearTimeout(timeoutId);
+        let response;
+        try {
+            response = await fetch(url, { signal: controller.signal });
+        } finally {
+            clearTimeout(timeoutId);
+        }
         console.log('响应状态:', response.status);
         console.log('响应ok:', response.ok);
         
