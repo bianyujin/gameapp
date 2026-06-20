@@ -498,7 +498,8 @@ const App = {
         let games = [...this.games];
 
         if (this.tableTab === 'favorites') {
-            games = games.filter(g => g.isFavorite);
+            const favIds = this.loadFavorites();
+            games = games.filter(g => favIds.includes(g.id));
         } else if (this.tableTab === 'history') {
             games = games.slice(0, 15);
         }
@@ -583,7 +584,7 @@ const App = {
         const favoritesCount = document.getElementById('favoritesCount');
         const historyCount = document.getElementById('historyCount');
         if (favoritesCount) {
-            favoritesCount.textContent = this.games.filter(g => g.isFavorite).length;
+            favoritesCount.textContent = this.loadFavorites().length;
         }
         if (historyCount) {
             const hist = this.loadHistory();
@@ -591,14 +592,30 @@ const App = {
         }
     },
 
-    // ========== 收藏功能 ==========
+    // ========== 收藏功能（用户独立存储，不写入公共数据）==========
+    loadFavorites() {
+        try { return JSON.parse(Storage.getItem('gamehub_favorites') || '[]'); } catch(e) { return []; }
+    },
+
+    saveFavorites(favs) {
+        try { Storage.setItem('gamehub_favorites', JSON.stringify(favs)); } catch(e) {}
+    },
+
+    isFavorite(gameId) {
+        return this.loadFavorites().includes(gameId);
+    },
+
     toggleFavorite(gameId) {
-        const game = this.games.find(g => g.id === gameId);
-        if (!game) return;
-        game.isFavorite = !game.isFavorite;
-        this.saveData();
-        this.renderTable();
-        this.showToast(game.isFavorite ? '已收藏' : '已取消收藏');
+        let favs = this.loadFavorites();
+        if (favs.includes(gameId)) {
+            favs = favs.filter(id => id !== gameId);
+            this.showToast('已取消收藏');
+        } else {
+            favs.push(gameId);
+            this.showToast('已收藏');
+        }
+        this.saveFavorites(favs);
+        this.updateProfileCounts();
     },
 
     // ========== 历史记录 ==========
@@ -621,7 +638,8 @@ const App = {
     },
 
     showFavorites() {
-        const favorites = this.games.filter(g => g.isFavorite);
+        const favIds = this.loadFavorites();
+        const favorites = this.games.filter(g => favIds.includes(g.id));
         this.showListModal('我的收藏', favorites);
     },
 
@@ -878,7 +896,7 @@ const App = {
                         ` : ''}
                     </div>
                     <div class="modal-footer">
-                        <button class="btn btn-secondary" onclick="App.toggleFavorite(${game.id});App.closeEditModal();" style="flex:1;">${game.isFavorite ? '★ 取消收藏' : '☆ 收藏'}</button>
+                        <button class="btn btn-secondary" onclick="App.toggleFavorite(${game.id});App.closeEditModal();" style="flex:1;">${this.isFavorite(game.id) ? '★ 取消收藏' : '☆ 收藏'}</button>
                         <button class="btn btn-primary" onclick="App.closeEditModal()" style="flex:1;">关闭</button>
                     </div>
                 </div>
