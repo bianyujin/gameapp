@@ -586,8 +586,38 @@ const App = {
             favoritesCount.textContent = this.games.filter(g => g.isFavorite).length;
         }
         if (historyCount) {
-            historyCount.textContent = this.viewHistory ? this.viewHistory.length : 0;
+            const hist = this.loadHistory();
+            historyCount.textContent = hist.length;
         }
+    },
+
+    // ========== 收藏功能 ==========
+    toggleFavorite(gameId) {
+        const game = this.games.find(g => g.id === gameId);
+        if (!game) return;
+        game.isFavorite = !game.isFavorite;
+        this.saveData();
+        this.renderTable();
+        this.showToast(game.isFavorite ? '已收藏' : '已取消收藏');
+    },
+
+    // ========== 历史记录 ==========
+    loadHistory() {
+        try {
+            return JSON.parse(Storage.getItem('gamehub_view_history') || '[]');
+        } catch(e) { return []; }
+    },
+
+    saveHistory(history) {
+        try { Storage.setItem('gamehub_view_history', JSON.stringify(history.slice(0, 100))); } catch(e) {}
+    },
+
+    addToHistory(game) {
+        let hist = this.loadHistory();
+        hist = hist.filter(h => h.id !== game.id);
+        hist.unshift({ id: game.id, title: game.title, icon: game.icon, category: game.category, time: Date.now() });
+        if (hist.length > 100) hist = hist.slice(0, 100);
+        this.saveHistory(hist);
     },
 
     showFavorites() {
@@ -596,7 +626,9 @@ const App = {
     },
 
     showHistory() {
-        this.showListModal('浏览历史', this.viewHistory || []);
+        const hist = this.loadHistory();
+        const items = hist.map(h => this.games.find(g => g.id === h.id)).filter(Boolean);
+        this.showListModal('浏览历史', items);
     },
 
     showListModal(title, items) {
@@ -738,6 +770,7 @@ const App = {
     },
 
     openEditModal(game, index) {
+        this.addToHistory(game);
         const rawFields = game._rawFields || Object.keys(game._rawData || {});
         
         const exactPrivateFields = ['搜索', '更新日志', 'FB', '视频'];
@@ -845,7 +878,8 @@ const App = {
                         ` : ''}
                     </div>
                     <div class="modal-footer">
-                        <button class="btn btn-primary" onclick="App.closeEditModal()" style="width: 100%;">关闭</button>
+                        <button class="btn btn-secondary" onclick="App.toggleFavorite(${game.id});App.closeEditModal();" style="flex:1;">${game.isFavorite ? '★ 取消收藏' : '☆ 收藏'}</button>
+                        <button class="btn btn-primary" onclick="App.closeEditModal()" style="flex:1;">关闭</button>
                     </div>
                 </div>
             </div>
