@@ -76,6 +76,10 @@ const App = {
     init() {
         try { this.isAdmin = Storage.getItem('gamehub_is_admin') === 'true'; } catch(e) { this.isAdmin = false; }
         try { this.loadDarkMode(); } catch(e) {}
+        try {
+            const savedOrder = Storage.getItem('gamehub_field_order');
+            if (savedOrder) this.globalFields = JSON.parse(savedOrder);
+        } catch(e) {}
         this.loadData();
         this.bindEvents();
         this.render();
