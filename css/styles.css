@@ -1895,3 +1895,32 @@ input:checked + .slider:before {
 .skeleton-line.w60 { width: 60%; }
 .skeleton-line.w40 { width: 40%; }
 .skeleton-line.w80 { width: 80%; }
+
+/* ========== 封面图状态 ========== */
+@keyframes cover-loading {
+    0%, 100% { opacity: 0.4; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.05); }
+}
+
+.game-cover.cover-loading {
+    position: relative;
+}
+
+.game-cover.cover-loading::after {
+    content: '⏳';
+    position: absolute;
+    font-size: 28px;
+    animation: cover-loading 1.2s infinite;
+    z-index: 2;
+}
+
+.game-cover.cover-noimage {
+    opacity: 0.5;
+}
+
+.game-cover.cover-noimage::after {
+    content: '😿';
+    position: absolute;
+    font-size: 24px;
+    opacity: 0.6;
+}

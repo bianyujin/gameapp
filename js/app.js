@@ -1354,13 +1354,15 @@ const App = {
             const coverUrl = this.getGameCoverUrl(game);
             const gradient = this.getTypeGradient(type);
             const typeIcon = this.getGameTypeIcon(type);
+            const hasPreview = this._coverEnabled && this.getPreviewUrl(game);
+            const coverClass = coverUrl ? '' : (hasPreview ? 'cover-loading' : 'cover-noimage');
 
             return `
             <div class="game-card" data-index="${gameIndex}" onclick="App.editGameByIndex(${gameIndex})">
-                <div class="game-cover" style="background: ${gradient};">
+                <div class="game-cover ${coverClass}" style="background: ${gradient};">
                     ${coverUrl
-                        ? `<img class="cover-img" src="${coverUrl}" alt="" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" /><span style="display:none;">${typeIcon}</span>`
-                        : typeIcon
+                        ? `<img class="cover-img" src="${coverUrl}" alt="" loading="lazy" onerror="this.style.display='none';this.parentElement.classList.remove('cover-loading');this.parentElement.classList.add('cover-noimage');" /><span style="display:none;">${typeIcon}</span>`
+                        : `<span>${typeIcon}</span>`
                     }
                 </div>
                 <div class="game-info">
