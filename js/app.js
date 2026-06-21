@@ -39,6 +39,23 @@ const Storage = {
 };
 Storage.init();
 
+const APP_VERSION = '2.1.0';
+
+// ========== 全局错误监控 ==========
+window.__errors = [];
+window.addEventListener('error', (e) => {
+    const err = { msg: e.message, src: e.filename, line: e.lineno, time: new Date().toISOString() };
+    window.__errors.push(err);
+    if (window.__errors.length > 50) window.__errors.shift();
+    console.error('[ErrorMonitor]', err);
+});
+window.addEventListener('unhandledrejection', (e) => {
+    const err = { msg: String(e.reason), type: 'unhandledrejection', time: new Date().toISOString() };
+    window.__errors.push(err);
+    if (window.__errors.length > 50) window.__errors.shift();
+    console.error('[ErrorMonitor]', err);
+});
+
 const App = {
     games: [],
     isAdmin: false,
@@ -74,6 +91,7 @@ const App = {
     nextId: 51,
 
     init() {
+        console.log(`[GAMEACG] v${APP_VERSION} 初始化 | Storage: ${Storage._type}`);
         try { this.isAdmin = Storage.getItem('gamehub_is_admin') === 'true'; } catch(e) { this.isAdmin = false; }
         try { this.loadDarkMode(); } catch(e) {}
         try {
@@ -535,49 +553,6 @@ const App = {
         );
 
         return games;
-    },
-
-    renderTable() {
-        const games = this.getFilteredGames();
-        const total = games.length;
-
-        const tbody = document.getElementById('tableBody');
-        if (!tbody) {
-            console.warn('tableBody元素不存在');
-            return;
-        }
-
-        tbody.innerHTML = games.map((game, index) => {
-            const gameIndex = this.games.indexOf(game);
-            const type = this.extractGameType(game.title || '') || this.extractGameType(game.category || '');
-            const coverUrl = this.getGameCoverUrl(game);
-            const gradient = this.getTypeGradient(type);
-            const typeIcon = this.getGameTypeIcon(type);
-
-            return `
-            <div class="game-card" data-index="${gameIndex}" onclick="App.editGameByIndex(${gameIndex})">
-                <div class="game-cover" style="background: ${gradient};">
-                    ${coverUrl
-                        ? `<img class="cover-img" src="${coverUrl}" alt="" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" /><span style="display:none;">${typeIcon}</span>`
-                        : typeIcon
-                    }
-                </div>
-                <div class="game-info">
-                    <div class="game-title">${this.escapeHtml(game.title || '未命名')}</div>
-                    <div class="game-meta">
-                        <span class="game-category">${this.escapeHtml(game.category || '其他')}</span>
-                        <span class="game-rating">${this.getGradeDisplay(game) || '⭐ ' + (game.rating || 0)}</span>
-                    </div>
-                </div>
-            </div>
-        `}).join('');
-
-        const tableInfo = document.getElementById('tableInfo');
-        if (tableInfo) {
-            tableInfo.textContent = `共 ${total} 条`;
-        }
-        
-        this.updateProfileCounts();
     },
 
     updateProfileCounts() {
@@ -1359,6 +1334,20 @@ const App = {
             return;
         }
 
+        if (games.length === 0 && this.games.length === 0) {
+            tbody.innerHTML = Array(6).fill('').map(() => `
+                <div class="skeleton-card">
+                    <div class="skeleton skeleton-avatar"></div>
+                    <div class="skeleton-lines">
+                        <div class="skeleton skeleton-line w80"></div>
+                        <div class="skeleton skeleton-line w60"></div>
+                        <div class="skeleton skeleton-line w40"></div>
+                    </div>
+                </div>
+            `).join('');
+            return;
+        }
+
         tbody.innerHTML = games.map((game, index) => {
             const gameIndex = this.games.indexOf(game);
             const type = this.extractGameType(game.title || '') || this.extractGameType(game.category || '');
@@ -1388,7 +1377,7 @@ const App = {
         if (tableInfo) {
             tableInfo.textContent = `共 ${total} 条`;
         }
-
+        
         this.updateProfileCounts();
     },
 
