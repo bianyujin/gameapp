@@ -548,7 +548,12 @@ const App = {
         if (this.tableState.filterCategories.size > 0) {
             games = games.filter(g => {
                 const gameType = this.extractGameType(g.title || '') || this.extractGameType(g.category || '');
-                return this.tableState.filterCategories.has(gameType);
+                if (this.tableState.filterCategories.has(gameType)) return true;
+                const fileId = (g._rawData && g._rawData['文件ID']) || '';
+                if (this.tableState.filterCategories.has(fileId)) return true;
+                const rawType = (g._rawData && g._rawData['类型']) || '';
+                if (this.tableState.filterCategories.has(rawType)) return true;
+                return false;
             });
         }
 
@@ -636,7 +641,7 @@ const App = {
                     <span style="font-size: 24px;">${item.icon || '🎮'}</span>
                     <div>
                         <div style="font-weight: 500;">${item.title || '未命名'}</div>
-                        <div style="font-size: 12px; color: #94a3b8;">${item.category || '其他'} · ${this.getGradeDisplay(item) || ('⭐ ' + (item.rating || 0))}</div>
+                        <div style="font-size: 12px; color: #94a3b8;">${item.category || '其他'} · ${this.getGradeDisplay(item) || ((item.rating && item.rating > 0) ? '⭐ ' + item.rating : '？')}</div>
                     </div>
                 </div>
             </div>
@@ -845,7 +850,7 @@ const App = {
                             </div>
                             <div class="form-group">
                                 <label class="form-label">评级</label>
-                                <div class="form-input" style="background: #0f172a;">${this.getGradeDisplay(game) || ('⭐ ' + (game.rating || 0))}</div>
+                                <div class="form-input" style="background: #0f172a;">${this.getGradeDisplay(game) || ((game.rating && game.rating > 0) ? '⭐ ' + game.rating : '？')}</div>
                             </div>
                         </div>
                         <div class="form-group">
@@ -1374,7 +1379,7 @@ const App = {
                     <div class="game-title">${this.escapeHtml(game.title || '未命名')}</div>
                     <div class="game-meta">
                         <span class="game-category">${this.escapeHtml(game.category || '其他')}</span>
-                        <span class="game-rating">${this.getGradeDisplay(game) || '⭐ ' + (game.rating || 0)}</span>
+                        <span class="game-rating">${this.getGradeDisplay(game) || ((game.rating && game.rating > 0) ? '⭐ ' + game.rating : '？')}</span>
                     </div>
                 </div>
             </div>
