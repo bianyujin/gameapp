@@ -168,9 +168,36 @@ async function main() {
         sortedFields.forEach(f => { if (!g._rawData[f]) g._rawData[f] = ''; });
     });
 
-    // 6. 写入 games.json
-    fs.writeFileSync(GAMES_FILE, JSON.stringify(games, null, 2), 'utf-8');
-    console.log(`\n✅ 已写入 ${games.length} 条数据到 games.json`);
+    // 6. 安全处理：过滤敏感字段，防止上传到公开仓库
+    const sensitiveFields = ['搜索', '更新日志', 'FB', '视频'];
+    const sensitivePatterns = ['版本及更新时间'];
+    const isSensitive = (key) => sensitiveFields.includes(key) || sensitivePatterns.some(p => key.includes(p));
+
+    // 保存完整版到本地（管理员用）
+    const fullFile = path.join(ROOT, 'games-full.json');
+    fs.writeFileSync(fullFile, JSON.stringify(games, null, 2), 'utf-8');
+    console.log(`完整版(含敏感字段)已保存到 games-full.json`);
+
+    // 过滤敏感字段后写入公开版
+    const publicGames = games.map(g => {
+        const clean = { ...g };
+        delete clean.privateData;
+        if (clean._rawData) {
+            const filtered = {};
+            for (const [k, v] of Object.entries(clean._rawData)) {
+                if (!isSensitive(k)) filtered[k] = v;
+            }
+            clean._rawData = filtered;
+        }
+        if (clean._rawFields) {
+            clean._rawFields = clean._rawFields.filter(f => !isSensitive(f));
+        }
+        return clean;
+    });
+
+    // 7. 写入 games.json（公开版，无敏感字段）
+    fs.writeFileSync(GAMES_FILE, JSON.stringify(publicGames, null, 2), 'utf-8');
+    console.log(`\n✅ 已写入 ${publicGames.length} 条数据到 games.json（已过滤敏感字段）`);
 
     // 7. 提取封面图
     if (noCovers) {
