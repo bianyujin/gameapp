@@ -529,14 +529,19 @@ const App = {
                 const catMatch = (g.category || '').toLowerCase().includes(q);
                 const rawSearch = (g._rawData && g._rawData['搜索']) || '';
                 const searchMatch = rawSearch.toLowerCase().includes(q);
-                // 搜索所有_rawData字段值
                 let descMatch = false;
                 if (g._rawData) {
                     descMatch = Object.values(g._rawData).some(v =>
                         typeof v === 'string' && v.toLowerCase().includes(q)
                     );
                 }
-                return titleMatch || catMatch || searchMatch || descMatch;
+                let privateMatch = false;
+                if (g.privateData) {
+                    privateMatch = Object.values(g.privateData).some(v =>
+                        typeof v === 'string' && v.toLowerCase().includes(q)
+                    );
+                }
+                return titleMatch || catMatch || searchMatch || descMatch || privateMatch;
             });
         }
 
