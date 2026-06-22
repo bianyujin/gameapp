@@ -1694,27 +1694,32 @@ const App = {
 
     clearCache() {
         if (confirm('确定要重置数据吗？\n\n这将清除所有本地缓存，重新从云端拉取最新数据。')) {
-            // 清除所有应用数据
+            // 只清除数据相关的缓存，保留配置
             const keys = ['gamehub_games', 'gamehub_nextId', 'gamehub_has_synced', 
-                'gamehub_last_sync_time', 'gamehub_cloud_config', 'gamehub_local_data_version',
+                'gamehub_last_sync_time', 'gamehub_local_data_version',
                 'gamehub_favorites', 'gamehub_view_history', 'gamehub_field_order'];
             keys.forEach(k => Storage.removeItem(k));
+            
+            // 清除预览图缓存
+            this._previewCache = new Map();
+            this._coverCache = {};
             
             this.games = [];
             this.nextId = 51;
             this.globalFields = null;
-            this.previewCache = new Map();
             
             this.showToast('缓存已清除，正在重新同步...');
             
-            // 延迟后自动同步
+            // 延迟后强制重新同步
             setTimeout(async () => {
                 try {
+                    // 重置同步时间，确保强制同步
+                    Storage.removeItem('gamehub_last_sync_time');
+                    Storage.removeItem('gamehub_has_synced');
                     await CloudSync.syncFromCloud();
-                    localStorage.setItem('gamehub_auto_sync_enabled', 'true');
-                    localStorage.setItem('gamehub_has_synced', 'true');
                     this.showToast('重置完成，数据已更新');
                 } catch(e) {
+                    console.error('重置同步失败:', e);
                     this.showToast('同步失败: ' + e.message);
                 }
             }, 500);

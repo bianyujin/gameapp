@@ -385,7 +385,9 @@ const CloudSync = {
             }
             
             if (isPrivateField(key)) {
-                mapped.privateData[key] = value;
+                if (value && !mapped.privateData[key]) {
+                    mapped.privateData[key] = value;
+                }
                 continue;
             }
             
