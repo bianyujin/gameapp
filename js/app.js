@@ -547,12 +547,19 @@ const App = {
 
         if (this.tableState.filterCategories.size > 0) {
             games = games.filter(g => {
-                const gameType = this.extractGameType(g.title || '') || this.extractGameType(g.category || '');
-                if (this.tableState.filterCategories.has(gameType)) return true;
                 const fileId = (g._rawData && g._rawData['文件ID']) || '';
-                if (this.tableState.filterCategories.has(fileId)) return true;
                 const rawType = (g._rawData && g._rawData['类型']) || '';
-                if (this.tableState.filterCategories.has(rawType)) return true;
+                const title = g.title || '';
+                const cat = g.category || '';
+                for (const catFilter of this.tableState.filterCategories) {
+                    const q = catFilter.toLowerCase();
+                    if (fileId.toLowerCase().includes(q) ||
+                        rawType.toLowerCase().includes(q) ||
+                        title.toLowerCase().includes(q) ||
+                        cat.toLowerCase().includes(q)) {
+                        return true;
+                    }
+                }
                 return false;
             });
         }
@@ -952,7 +959,7 @@ const App = {
                                 <button type="button" onclick="App.copyFieldText(this)" style="background: #334155; border: none; color: #94a3b8; cursor: pointer; padding: 4px 8px; border-radius: 4px; font-size: 12px;">复制</button>
                             </span>
                         </label>
-                        <div class="form-textarea raw-field-value" data-field="${k}" style="font-size: 13px; background: #0f172a; min-height: 40px; white-space: pre-wrap; word-break: break-all;">${String(game._rawData[k] || '-')}</div>
+                    <div class="form-textarea raw-field-value" data-field="${k}" style="font-size: 13px; background: #0f172a; min-height: 40px; white-space: pre-wrap; word-break: break-all;">${String(game.privateData?.[k] || game._rawData[k] || '-')}</div>
                     </div>
                 `).join('');
                 container.innerHTML = newHtml;
@@ -1125,6 +1132,8 @@ const App = {
                             <button class="btn btn-secondary" onclick="App.sortGames('updateDate', 'asc')" style="text-align: left;">🕐 修改时间 旧-新</button>
                             <button class="btn btn-secondary" onclick="App.sortGames('createDate', 'desc')" style="text-align: left;">📅 创建时间 新-旧</button>
                             <button class="btn btn-secondary" onclick="App.sortGames('createDate', 'asc')" style="text-align: left;">📅 创建时间 旧-新</button>
+                            <button class="btn btn-secondary" onclick="App.sortGames('size', 'desc')" style="text-align: left;">📦 大小 大-小</button>
+                            <button class="btn btn-secondary" onclick="App.sortGames('size', 'asc')" style="text-align: left;">📦 大小 小-大</button>
                             <button class="btn btn-secondary" onclick="App.randomSort()" style="text-align: left;">🎲 随机推荐</button>
                         </div>
                     </div>
@@ -1180,6 +1189,9 @@ const App = {
             } else if (column === 'rating') {
                 valA = parseFloat(a.rating) || 0;
                 valB = parseFloat(b.rating) || 0;
+            } else if (column === 'size') {
+                valA = this.parseFileSize(a.title || '');
+                valB = this.parseFileSize(b.title || '');
             } else {
                 valA = a[column] || 0;
                 valB = b[column] || 0;
@@ -1194,6 +1206,18 @@ const App = {
         this.closeSortModal();
         this.renderTable();
         this.showToast('排序完成');
+    },
+
+    parseFileSize(str) {
+        if (!str) return 0;
+        const m = str.match(/([\d.]+)\s*(G|GB|M|MB|K|KB)/i);
+        if (!m) return 0;
+        const num = parseFloat(m[1]);
+        const unit = m[2].toUpperCase();
+        if (unit.startsWith('G')) return num * 1024;
+        if (unit.startsWith('M')) return num;
+        if (unit.startsWith('K')) return num / 1024;
+        return num;
     },
 
     parseChineseDate(dateStr) {
