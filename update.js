@@ -205,13 +205,35 @@ async function main() {
             execSync(`git commit -m "update: 数据更新 ${new Date().toISOString().split('T')[0]}"`, { cwd: ROOT, stdio: 'pipe' });
             console.log('正在推送到GitHub...');
             execSync('git push', { cwd: ROOT, stdio: 'pipe' });
-            console.log('✅ 推送成功！');
+            console.log('✅ 推送成功！GitHub Pages 将在1-2分钟内更新');
         }
     } catch(e) {
         console.log('⚠️  Git操作失败，数据已更新到本地，请手动push');
     }
 
+    // 9. 验证数据源可达
+    console.log('\n验证数据源...');
+    try {
+        const https = require('https');
+        const config = JSON.parse(fs.readFileSync(path.join(ROOT, 'config.json'), 'utf-8'));
+        const testUrl = config.games_data_url + '?t=' + Date.now();
+        await new Promise((resolve, reject) => {
+            https.get(testUrl, (res) => {
+                let data = '';
+                res.on('data', chunk => data += chunk);
+                res.on('end', () => {
+                    const d = JSON.parse(data);
+                    console.log(`✅ 数据源可达: ${d.length} 条数据`);
+                    resolve();
+                });
+            }).on('error', reject);
+        });
+    } catch(e) {
+        console.log('⚠️  数据源暂时不可达，稍后会自动恢复');
+    }
+
     console.log('\n=== 更新完成 ===');
+    console.log('APP 里点「重置」即可看到最新数据');
 }
 
 main().catch(e => { console.error('❌ 更新失败:', e.message); process.exit(1); });
