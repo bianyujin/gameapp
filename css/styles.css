@@ -33,19 +33,19 @@
 }
 
 body.light-mode {
-    --background: #f8fafc;
+    --background: #ffffff;
     --surface: #ffffff;
-    --surface-light: #e2e8f0;
-    --surface-variant: #cbd5e1;
+    --surface-light: #f1f5f9;
+    --surface-variant: #e2e8f0;
     --text-primary: #0f172a;
     --text-secondary: #475569;
     --text-muted: #94a3b8;
-    --border: rgba(0, 0, 0, 0.1);
+    --border: rgba(0, 0, 0, 0.12);
     --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-    --gradient-bg: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%);
-    --header-bg: rgba(255, 255, 255, 0.95);
-    --nav-bg: rgba(255, 255, 255, 0.95);
+    --gradient-bg: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%);
+    --header-bg: rgba(255, 255, 255, 0.97);
+    --nav-bg: rgba(255, 255, 255, 0.97);
 }
 
 body.light-mode .game-title { color: #0f172a; }
