@@ -54,10 +54,10 @@ body.light-mode .game-rating { color: #d97706; }
 body.light-mode .game-category { background: #e2e8f0; color: #475569; }
 body.light-mode .form-label { color: #334155; }
 body.light-mode .form-input, body.light-mode .form-select {
-    background: #f1f5f9; color: #0f172a; border-color: #cbd5e1;
+    background: #ffffff; color: #0f172a; border-color: #d1d5db;
 }
 body.light-mode .form-textarea, body.light-mode .raw-field-value {
-    background: #f1f5f9; color: #0f172a; border-color: #cbd5e1;
+    background: #ffffff; color: #0f172a; border-color: #d1d5db;
 }
 body.light-mode .settings-label { color: #1e293b; }
 body.light-mode .settings-value { color: #64748b; }
