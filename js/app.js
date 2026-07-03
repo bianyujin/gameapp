@@ -1134,7 +1134,6 @@ const App = {
                             <button class="btn btn-secondary" onclick="App.sortGames('createDate', 'asc')" style="text-align: left;">📅 创建时间 旧-新</button>
                             <button class="btn btn-secondary" onclick="App.sortGames('size', 'desc')" style="text-align: left;">📦 大小 大-小</button>
                             <button class="btn btn-secondary" onclick="App.sortGames('size', 'asc')" style="text-align: left;">📦 大小 小-大</button>
-                            <button class="btn btn-secondary" onclick="App.randomSort()" style="text-align: left;">🎲 随机推荐</button>
                         </div>
                     </div>
                 </div>

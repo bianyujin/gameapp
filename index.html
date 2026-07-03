@@ -17,16 +17,13 @@
 
         <main class="app-content" id="mainContent">
             <div id="page-home" class="page active">
-                <div class="guide-banner" id="guideBanner" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px 20px; border-radius: 12px; margin-bottom: 20px; display: block;">
-                    <div style="display: flex; align-items: center; justify-content: space-between;">
-                        <div style="display: flex; align-items: center; gap: 12px;">
-                            <span style="font-size: 24px;">📖</span>
-                            <div>
-                                <div style="font-weight: 600; color: white; font-size: 14px;">欢迎来到 GAMEACG</div>
-                                <div style="color: rgba(255,255,255,0.9); font-size: 12px; margin-top: 4px;">首次使用需要在【我的】页面手动同步数据。有问题可以公众号反馈或QQ反馈。</div>
-                            </div>
+                <div class="guide-banner" id="guideBanner" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px 20px; border-radius: 12px; margin-bottom: 20px;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <span style="font-size: 24px;">📖</span>
+                        <div>
+                            <div style="font-weight: 600; color: white; font-size: 14px;">欢迎来到 GAMEACG</div>
+                            <div style="color: rgba(255,255,255,0.9); font-size: 12px; margin-top: 4px;">首次使用需要在【我的】页面手动同步数据。有问题可以公众号反馈或QQ反馈。</div>
                         </div>
-                        <button onclick="App.hideGuideBanner()" style="background: rgba(255,255,255,0.2); border: none; color: white; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;">知道了</button>
                     </div>
                 </div>
                 <div id="announcementSection" style="background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%); border-radius: 12px; padding: 14px 16px; margin-bottom: 16px;">
@@ -61,6 +58,7 @@
                         <span class="search-icon">🔍</span>
                         <input type="text" id="tableSearch" placeholder="搜索...">
                     </div>
+                    <button class="toolbar-btn" onclick="App.randomSort()" title="随机推荐">🎲</button>
                     <button class="toolbar-btn" id="filterBtn" title="筛选">🔽</button>
                     <button class="toolbar-btn" id="sortBtn" title="排序">↕️</button>
                 </div>
