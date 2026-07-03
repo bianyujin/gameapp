@@ -48,6 +48,29 @@ body.light-mode {
     --nav-bg: rgba(255, 255, 255, 0.95);
 }
 
+/* 亮色模式覆盖：修复硬编码暗色 */
+body.light-mode .game-title { color: #0f172a; }
+body.light-mode .game-meta { color: #475569; }
+body.light-mode .game-rating { color: #d97706; }
+body.light-mode .form-label { color: #475569; }
+body.light-mode .form-input, body.light-mode .form-select, body.light-mode .form-textarea {
+    background: #ffffff; color: #0f172a; border-color: rgba(0,0,0,0.1);
+}
+body.light-mode .form-textarea { background: #ffffff; color: #0f172a; }
+body.light-mode .settings-label { color: #0f172a; }
+body.light-mode .settings-value { color: #475569; }
+body.light-mode .modal-content { background: #ffffff; }
+body.light-mode .modal-title { color: #0f172a; }
+body.light-mode .modal-body, body.light-mode .modal-body * { color: #0f172a; }
+body.light-mode .modal-footer { border-color: rgba(0,0,0,0.1); }
+body.light-mode .raw-field-value { background: #f1f5f9; color: #0f172a; }
+body.light-mode .list-item { border-color: rgba(0,0,0,0.1); }
+body.light-mode .guide-banner { background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); }
+body.light-mode .pagination-btn { background: #ffffff; color: #0f172a; border-color: rgba(0,0,0,0.1); }
+body.light-mode .pagination-btn.active { background: #6366f1; color: white; }
+body.light-mode .filter-option { background: #ffffff; color: #0f172a; border-color: rgba(0,0,0,0.1); }
+body.light-mode .filter-option.selected { background: #6366f1; color: white; }
+
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     background: var(--gradient-bg);
