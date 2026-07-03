@@ -33,45 +33,57 @@
 }
 
 body.light-mode {
-    --background: #1e293b;
-    --surface: #334155;
-    --surface-light: #475569;
-    --surface-variant: #64748b;
-    --text-primary: #f1f5f9;
-    --text-secondary: #cbd5e1;
+    --background: #f8fafc;
+    --surface: #ffffff;
+    --surface-light: #e2e8f0;
+    --surface-variant: #cbd5e1;
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
     --text-muted: #94a3b8;
-    --border: rgba(255, 255, 255, 0.1);
-    --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
-    --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
-    --gradient-bg: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
-    --header-bg: rgba(30, 41, 59, 0.95);
-    --nav-bg: rgba(30, 41, 59, 0.95);
+    --border: rgba(0, 0, 0, 0.1);
+    --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    --gradient-bg: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%);
+    --header-bg: rgba(255, 255, 255, 0.95);
+    --nav-bg: rgba(255, 255, 255, 0.95);
 }
 
-body.light-mode .game-title { color: #f1f5f9; }
-body.light-mode .game-meta { color: #cbd5e1; }
-body.light-mode .game-rating { color: #fbbf24; }
-body.light-mode .form-label { color: #cbd5e1; }
-body.light-mode .form-input, body.light-mode .form-select { background: #0f172a; color: #f1f5f9; border-color: #334155; }
-body.light-mode .form-textarea { background: #0f172a; color: #f1f5f9; }
-body.light-mode .settings-label { color: #f1f5f9; }
-body.light-mode .settings-value { color: #94a3b8; }
-body.light-mode .modal-content { background: #1e293b; }
-body.light-mode .modal-title { color: #f1f5f9; }
-body.light-mode .modal-body { color: #e2e8f0; }
-body.light-mode .modal-body p, body.light-mode .modal-body div, body.light-mode .modal-body span, body.light-mode .modal-body label { color: #e2e8f0; }
-body.light-mode .modal-footer { border-color: #334155; }
-body.light-mode .raw-field-value { background: #0f172a; color: #e2e8f0; }
-body.light-mode .list-item { border-color: #334155; }
-body.light-mode .pagination-btn { background: #334155; color: #e2e8f0; border-color: #475569; }
+body.light-mode .game-title { color: #0f172a; }
+body.light-mode .game-meta { color: #475569; }
+body.light-mode .game-rating { color: #d97706; }
+body.light-mode .game-category { background: #e2e8f0; color: #475569; }
+body.light-mode .form-label { color: #334155; }
+body.light-mode .form-input, body.light-mode .form-select {
+    background: #f1f5f9; color: #0f172a; border-color: #cbd5e1;
+}
+body.light-mode .form-textarea, body.light-mode .raw-field-value {
+    background: #f1f5f9; color: #0f172a; border-color: #cbd5e1;
+}
+body.light-mode .settings-label { color: #1e293b; }
+body.light-mode .settings-value { color: #64748b; }
+body.light-mode .modal-content { background: #ffffff; border-color: #e2e8f0; }
+body.light-mode .modal-title { color: #0f172a; }
+body.light-mode .modal-body, body.light-mode .modal-body p,
+body.light-mode .modal-body div, body.light-mode .modal-body span,
+body.light-mode .modal-body label { color: #334155; }
+body.light-mode .modal-body a { color: #6366f1; }
+body.light-mode .modal-footer { border-color: #e2e8f0; }
+body.light-mode .list-item { border-color: #e2e8f0; }
+body.light-mode .list-item .list-item-title { color: #0f172a; }
+body.light-mode .list-item .list-item-meta { color: #64748b; }
+body.light-mode .pagination-btn { background: #ffffff; color: #334155; border-color: #cbd5e1; }
 body.light-mode .pagination-btn.active { background: #6366f1; color: white; }
-body.light-mode .filter-option { background: #334155; color: #e2e8f0; border-color: #475569; }
+body.light-mode .filter-option { background: #ffffff; color: #334155; border-color: #cbd5e1; }
 body.light-mode .filter-option.selected { background: #6366f1; color: white; }
-body.light-mode .app-nav { background: var(--nav-bg); border-color: #334155; }
-body.light-mode .nav-label { color: #94a3b8; }
+body.light-mode .app-nav { background: var(--nav-bg); border-color: #e2e8f0; }
+body.light-mode .nav-label { color: #64748b; }
 body.light-mode .nav-item.active .nav-label { color: #6366f1; }
-body.light-mode .toast { background: #334155; color: #f1f5f9; }
-body.light-mode a { color: #818cf8; }
+body.light-mode .toast { background: #334155; color: white; }
+body.light-mode .skeleton { background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%); }
+body.light-mode .guide-banner { background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); }
+body.light-mode .announcement-section { background: #f1f5f9; border-color: #e2e8f0; }
+body.light-mode .announcement-section .announcement-title { color: #0f172a; }
+body.light-mode .announcement-section .announcement-text { color: #475569; }
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
