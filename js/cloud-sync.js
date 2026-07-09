@@ -788,13 +788,35 @@ const CloudSync = {
     },
 
     async syncFromGamesJson() {
-        console.log('强制刷新，忽略版本检查...');
+        console.log('同步数据...');
 
         let url = this.config.gamesDataUrl;
         
         if (!url) {
-            throw new Error('games_data_url未配置，请检查config.json');
+            throw new Error('games_data_url未配置');
         }
+        
+        // 尝试主URL，失败则尝试备用URL
+        const urls = [url];
+        if (this.config.fallbackUrl && this.config.fallbackUrl !== url) {
+            urls.push(this.config.fallbackUrl);
+        }
+        
+        let lastError = null;
+        for (const tryUrl of urls) {
+            console.log('尝试:', tryUrl.substring(0, 60) + '...');
+            try {
+                await this._fetchAndProcess(tryUrl);
+                return; // 成功则返回
+            } catch (e) {
+                console.log('失败:', e.message);
+                lastError = e;
+            }
+        }
+        throw lastError || new Error('所有数据源均失败');
+    },
+
+    async _fetchAndProcess(url) {
         
         console.log('请求URL:', url);
         let response = null;
@@ -833,16 +855,6 @@ const CloudSync = {
         } catch (e) {
             console.error('JSON解析失败:', e);
             throw new Error('JSON解析失败，请检查数据格式');
-        }
-
-        // 处理 GitHub API 响应格式（base64 编码）
-        if (data && data.encoding === 'base64' && data.content) {
-            console.log('检测到 GitHub API 格式，解码 base64...');
-            try {
-                data = JSON.parse(atob(data.content));
-            } catch (e) {
-                throw new Error('base64 解码失败');
-            }
         }
         
         if (data) {
@@ -1167,8 +1179,7 @@ const CloudSync = {
     async loadCloudConfig(forceRefresh = false) {
         console.log('尝试从config.json加载配置...');
         
-        // 备用数据URL（config.json加载失败时使用）
-        const fallbackUrl = 'https://cdn.jsdelivr.net/gh/bianyujin/gameapp@latest/games.json';
+        const fallbackUrl = 'https://cdn.jsdelivr.net/gh/bianyujin/gameapp@main/games.json';
         
         try {
             const response = await fetch('config.json');
@@ -1180,13 +1191,13 @@ const CloudSync = {
                 this.config.gamesDataUrl = configData.games_data_url || fallbackUrl;
                 this.config.gamesDataVersion = configData.games_data_version || '';
                 this.config.notionEmbedUrl = configData.notion_embed_url || '';
-                console.log('从config.json加载成功:', this.config);
+                this.config.fallbackUrl = configData.fallback_url || fallbackUrl;
+                console.log('从config.json加载成功');
             } else {
-                console.log('config.json加载失败，使用备用URL');
                 this.config.gamesDataUrl = fallbackUrl;
             }
         } catch (e) {
-            console.log('加载config.json失败，使用备用URL:', e.message);
+            console.log('加载config.json失败，使用备用URL');
             this.config.gamesDataUrl = fallbackUrl;
         }
         
