@@ -797,21 +797,28 @@ const CloudSync = {
         }
         
         console.log('请求URL:', url);
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 60000);
-        let response;
-        try {
-            response = await fetch(url, { signal: controller.signal });
-        } finally {
-            clearTimeout(timeoutId);
+        let response = null;
+        for (let attempt = 1; attempt <= 3; attempt++) {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000);
+            try {
+                response = await fetch(url, { signal: controller.signal });
+                clearTimeout(timeoutId);
+                if (response.ok) break;
+                console.log(`第${attempt}次请求失败: ${response.status}`);
+            } catch (e) {
+                clearTimeout(timeoutId);
+                console.log(`第${attempt}次请求失败: ${e.message}`);
+                if (attempt < 3) {
+                    console.log(`${attempt}秒后重试...`);
+                    await new Promise(r => setTimeout(r, attempt * 2000));
+                }
+            }
+        }
+        if (!response || !response.ok) {
+            throw new Error('数据下载失败，请检查网络连接');
         }
         console.log('响应状态:', response.status);
-        console.log('响应ok:', response.ok);
-        
-        if (!response.ok) {
-            console.error('响应失败, 状态:', response.status);
-            throw new Error(`下载失败 (状态码: ${response.status})`);
-        }
         
         const responseText = await response.text();
         console.log('响应内容前200字符:', responseText.substring(0, 200));
@@ -1150,6 +1157,9 @@ const CloudSync = {
     async loadCloudConfig(forceRefresh = false) {
         console.log('尝试从config.json加载配置...');
         
+        // 备用数据URL（config.json加载失败时使用）
+        const fallbackUrl = 'https://cdn.jsdelivr.net/gh/bianyujin/gameapp@latest/games.json';
+        
         try {
             const response = await fetch('config.json');
             if (response.ok) {
@@ -1157,15 +1167,17 @@ const CloudSync = {
                 this.config.latestVersion = configData.latest_version || '';
                 this.config.updateUrl = configData.update_url || '';
                 this.config.cloudAdminPassword = configData.admin_password || '';
-                this.config.gamesDataUrl = configData.games_data_url || '';
+                this.config.gamesDataUrl = configData.games_data_url || fallbackUrl;
                 this.config.gamesDataVersion = configData.games_data_version || '';
                 this.config.notionEmbedUrl = configData.notion_embed_url || '';
                 console.log('从config.json加载成功:', this.config);
             } else {
-                console.log('无法从config.json加载');
+                console.log('config.json加载失败，使用备用URL');
+                this.config.gamesDataUrl = fallbackUrl;
             }
         } catch (e) {
-            console.log('加载config.json失败:', e);
+            console.log('加载config.json失败，使用备用URL:', e.message);
+            this.config.gamesDataUrl = fallbackUrl;
         }
         
         this.saveConfig();
