@@ -31,6 +31,11 @@ self.addEventListener('fetch', event => {
     return;
   }
   
+  // games.json 不缓存，确保每次获取最新数据
+  if (url.pathname.includes('games.json')) {
+    return;
+  }
+  
   event.respondWith(
     fetch(event.request)
       .then(response => {
