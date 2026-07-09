@@ -1,1 +1,1 @@
-{"latest_version": "2.1.0", "update_url": "https://pan.baidu.com/s/1cnng925doaegghKTx7Oo3w?pwd=BAYJ", "admin_password": "520hd123", "games_data_url": "https://cdn.jsdelivr.net/gh/bianyujin/gameapp@latest/games.json", "games_data_version": "2026070401"}
+{"latest_version": "2.1.0", "update_url": "https://pan.baidu.com/s/1cnng925doaegghKTx7Oo3w?pwd=BAYJ", "admin_password": "520hd123", "games_data_url": "https://api.github.com/repos/bianyujin/gameapp/contents/games.json", "games_data_version": "2026070901"}

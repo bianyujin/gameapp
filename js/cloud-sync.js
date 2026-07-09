@@ -834,6 +834,16 @@ const CloudSync = {
             console.error('JSON解析失败:', e);
             throw new Error('JSON解析失败，请检查数据格式');
         }
+
+        // 处理 GitHub API 响应格式（base64 编码）
+        if (data && data.encoding === 'base64' && data.content) {
+            console.log('检测到 GitHub API 格式，解码 base64...');
+            try {
+                data = JSON.parse(atob(data.content));
+            } catch (e) {
+                throw new Error('base64 解码失败');
+            }
+        }
         
         if (data) {
             let games;
