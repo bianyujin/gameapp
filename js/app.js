@@ -1718,7 +1718,7 @@ const App = {
     },
 
     clearCache() {
-        if (confirm('确定要重置数据吗？\n\n这将清除所有本地缓存，重新从云端拉取最新数据。')) {
+        if (confirm('确定要重置数据吗？\n\n将清除本地缓存并重新同步最新数据。')) {
             // 只清除数据相关的缓存，保留配置
             const keys = ['gamehub_games', 'gamehub_nextId', 'gamehub_has_synced', 
                 'gamehub_last_sync_time', 'gamehub_local_data_version',
