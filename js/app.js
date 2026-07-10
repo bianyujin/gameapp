@@ -1559,10 +1559,36 @@ const App = {
     getGameCoverUrl(game) {
         try {
             if (!this._coverEnabled) return null;
+            // 优先用预提取的 coverUrls
             const urls = game.coverUrls;
-            if (!urls || !Array.isArray(urls) || urls.length === 0) return null;
-            return urls[Math.floor(Math.random() * urls.length)];
+            if (urls && Array.isArray(urls) && urls.length > 0) {
+                return urls[Math.floor(Math.random() * urls.length)];
+            }
+            // coverUrls 为空时，从预览字段直接提取图片URL
+            const preview = this.getPreviewUrl(game);
+            if (preview) {
+                const direct = this.extractDirectImageUrls(preview);
+                if (direct.length > 0) return direct[0];
+                // 异步解析相册URL（下次渲染时显示）
+                this._resolveCoverAsync(game);
+            }
+            return null;
         } catch(e) { return null; }
+    },
+
+    _coverResolving: new Set(),
+    _resolveCoverAsync(game) {
+        if (this._coverResolving.has(game.id)) return;
+        const preview = this.getPreviewUrl(game);
+        if (!preview) return;
+        this._coverResolving.add(game.id);
+        this.resolvePreviewUrls(preview).then(urls => {
+            if (urls.length > 0) {
+                game.coverUrls = urls;
+                this.renderTable();
+            }
+            this._coverResolving.delete(game.id);
+        }).catch(() => this._coverResolving.delete(game.id));
     },
 
     // 封面预览开关状态
