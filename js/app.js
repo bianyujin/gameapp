@@ -1761,7 +1761,7 @@ const App = {
     },
 
     clearCache() {
-        if (confirm('确定要重置数据吗？\n\n将清除本地缓存并重新同步最新数据。')) {
+        if (confirm('确定要重置数据吗？\n\n将清除本地缓存并重新加载最新数据。')) {
             // 只清除数据相关的缓存，保留配置
             const keys = ['gamehub_games', 'gamehub_nextId', 'gamehub_has_synced', 
                 'gamehub_last_sync_time', 'gamehub_local_data_version',
@@ -1788,7 +1788,7 @@ const App = {
                     this.showToast('重置完成，数据已更新');
                 } catch(e) {
                     console.error('重置同步失败:', e);
-                    this.showToast('同步失败: ' + e.message);
+                    this.showToast('同步失败，请检查网络后重试');
                 }
             }, 500);
         }
