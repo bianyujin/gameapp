@@ -425,7 +425,11 @@ const CloudSync = {
         if (Object.keys(mapped.privateData).length === 0) {
             delete mapped.privateData;
         }
-        
+
+        if (game.coverUrls && Array.isArray(game.coverUrls) && game.coverUrls.length > 0) {
+            mapped.coverUrls = game.coverUrls;
+        }
+
         return mapped;
     },
 
