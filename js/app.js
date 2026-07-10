@@ -1332,14 +1332,15 @@ const App = {
     },
 
     async populateCoverUrls(game) {
+        if (game.coverUrls && Array.isArray(game.coverUrls) && game.coverUrls.length > 0) return;
         const previewText = this.getPreviewUrl(game);
-        if (!previewText) { game.coverUrls = []; return; }
+        if (!previewText) return;
         const cached = this._previewCache.get(previewText);
         if (cached && cached.length > 0) { game.coverUrls = cached; return; }
         try {
             const urls = await this.resolvePreviewUrls(previewText);
-            game.coverUrls = urls;
-        } catch(e) { game.coverUrls = []; }
+            if (urls && urls.length > 0) game.coverUrls = urls;
+        } catch(e) {}
     },
 
     async preloadCoverUrls() {
