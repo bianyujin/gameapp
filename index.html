@@ -217,22 +217,24 @@
     <script src="js/review.js?v=1"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // WebView环境不注册Service Worker，避免拦截图片等外部请求
             const isWebView = /wv|WebView|Capacitor|MIT App Inventor/i.test(navigator.userAgent) || 
                               window.location.protocol === 'file:' ||
                               window.location.hostname === 'localhost';
-            if (!isWebView && 'serviceWorker' in navigator) {
+            
+            if (isWebView) {
+                // WebView环境：强制注销所有SW，确保不拦截任何请求
+                if ('serviceWorker' in navigator) {
+                    navigator.serviceWorker.getRegistrations().then(regs => {
+                        regs.forEach(r => r.unregister());
+                        console.log('[App] WebView环境，已注销', regs.length, '个Service Worker');
+                    });
+                }
+            } else if ('serviceWorker' in navigator) {
                 window.addEventListener('load', () => {
                     navigator.serviceWorker.register('./sw.js')
-                        .then((registration) => {
-                            console.log('Service Worker 注册成功:', registration);
-                        })
-                        .catch((error) => {
-                            console.log('Service Worker 注册失败:', error);
-                        });
+                        .then(r => console.log('SW 注册成功'))
+                        .catch(e => console.log('SW 注册失败', e));
                 });
-            } else {
-                console.log('[App] WebView环境，跳过Service Worker');
             }
             
             const syncFromCloudBtn = document.getElementById('syncFromCloudBtn');
