@@ -31,12 +31,13 @@ function extractImagesFromHtml(html, baseUrl) {
         }
     }
 
-    // 2. moebox.io: /image/xxxx.xxxxx 格式
+    // 2. moebox.io 相册：提取 image.acg.lol 的 .md.jpg 直链
+    //    pic.moebox.io/image/xxx 是相册页面URL（返回HTML），不是图片直链
+    //    真实图片直链在 HTML 里是 image.acg.lol/file/xxx.md.jpg 格式
     if (baseUrl.includes('moebox.io')) {
-        const moeRe = /\/image\/([a-f0-9]{20,}\.[a-zA-Z0-9]{4,})/gi;
-        while ((m = moeRe.exec(html)) !== null) {
-            const u = 'https://pic.moebox.io/image/' + m[1];
-            if (!imgs.includes(u)) imgs.push(u);
+        const acgRe = /https?:\/\/image\.acg\.lol\/file\/[^\s"'<>]+\.md\.(?:jpg|jpeg|png|gif|webp)/gi;
+        while ((m = acgRe.exec(html)) !== null) {
+            if (!imgs.includes(m[0])) imgs.push(m[0]);
         }
     }
 
