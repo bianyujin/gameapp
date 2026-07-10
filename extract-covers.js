@@ -124,6 +124,16 @@ async function main() {
 
         try {
             const html = await fetchUrl(preview, 8000);
+
+            // 检测加密相册（moebox 等），快速跳过
+            if (/需要密码|password.*required|enter.*password/i.test(html.substring(0, 2000))) {
+                failed++;
+                if (errors.length < 30) {
+                    errors.push(`[${game.title?.substring(0,30)}] 加密相册，跳过`);
+                }
+                continue;
+            }
+
             const urls = extractImagesFromHtml(html, preview);
 
             if (urls.length > 0) {
