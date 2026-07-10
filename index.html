@@ -217,7 +217,11 @@
     <script src="js/review.js?v=1"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            if ('serviceWorker' in navigator) {
+            // WebView环境不注册Service Worker，避免拦截图片等外部请求
+            const isWebView = /wv|WebView|Capacitor|MIT App Inventor/i.test(navigator.userAgent) || 
+                              window.location.protocol === 'file:' ||
+                              window.location.hostname === 'localhost';
+            if (!isWebView && 'serviceWorker' in navigator) {
                 window.addEventListener('load', () => {
                     navigator.serviceWorker.register('./sw.js')
                         .then((registration) => {
@@ -227,6 +231,8 @@
                             console.log('Service Worker 注册失败:', error);
                         });
                 });
+            } else {
+                console.log('[App] WebView环境，跳过Service Worker');
             }
             
             const syncFromCloudBtn = document.getElementById('syncFromCloudBtn');
