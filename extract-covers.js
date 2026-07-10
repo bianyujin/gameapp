@@ -31,12 +31,13 @@ function extractImagesFromHtml(html, baseUrl) {
         }
     }
 
-    // 2. moebox.io 相册：提取 image.acg.lol 的 .md.jpg 直链
-    //    pic.moebox.io/image/xxx 是相册页面URL（返回HTML），不是图片直链
-    //    真实图片直链在 HTML 里是 image.acg.lol/file/xxx.md.jpg 格式
+    // 2. moebox.io 相册：提取 image.acg.lol 图片直链
+    //    页面里有 .md.png（中图）、.th.png（缩略图）、.png（原图）等格式
+    //    优先用 .md.xxx，过滤 .th. 缩略图
     if (baseUrl.includes('moebox.io')) {
-        const acgRe = /https?:\/\/image\.acg\.lol\/file\/[^\s"'<>]+\.md\.(?:jpg|jpeg|png|gif|webp)/gi;
+        const acgRe = /https?:\/\/image\.acg\.lol\/file\/[^\s"'<>]+\.(?:jpg|jpeg|png|gif|webp)/gi;
         while ((m = acgRe.exec(html)) !== null) {
+            if (m[0].includes('.th.')) continue;
             if (!imgs.includes(m[0])) imgs.push(m[0]);
         }
     }
@@ -123,7 +124,7 @@ async function main() {
         }
 
         try {
-            const html = await fetchUrl(preview, 8000);
+            const html = await fetchUrl(preview, 15000);
 
             // 检测加密相册（moebox 等），快速跳过
             if (/需要密码|password.*required|enter.*password/i.test(html.substring(0, 2000))) {
