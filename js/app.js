@@ -1283,16 +1283,10 @@ const App = {
     async fetchAlbumImages(pageUrl) {
         let html = null;
         try {
-            const resp = await fetch(pageUrl, { cache: 'no-cache', mode: 'cors' });
+            const proxyUrl = '/api/preview?url=' + encodeURIComponent(pageUrl);
+            const resp = await fetch(proxyUrl, { cache: 'no-cache' });
             if (resp.ok) html = await resp.text();
         } catch(e) {}
-        if (!html) {
-            try {
-                const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(pageUrl);
-                const resp = await fetch(proxyUrl, { cache: 'no-cache' });
-                if (resp.ok) html = await resp.text();
-            } catch(e) {}
-        }
         if (!html) return [];
         const imgs = [];
         const patterns = [
@@ -1463,10 +1457,8 @@ const App = {
         this._loadingPreviews.add(previewUrl);
 
         try {
-            const resp = await fetch(previewUrl, {
-                method: 'GET',
-                headers: { 'Accept': 'text/html,*/*' },
-                signal: AbortSignal.timeout(8000)
+            const resp = await fetch('/api/preview?url=' + encodeURIComponent(previewUrl), {
+                signal: AbortSignal.timeout(10000)
             });
             const html = await resp.text();
             const images = this.extractImagesFromHtml(html, previewUrl);
