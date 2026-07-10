@@ -1381,8 +1381,7 @@ const App = {
             const coverUrl = this.getGameCoverUrl(game);
             const gradient = this.getTypeGradient(type);
             const typeIcon = this.getGameTypeIcon(type);
-            const hasPreview = this._coverEnabled && this.getPreviewUrl(game);
-            const coverClass = coverUrl ? '' : (hasPreview ? 'cover-loading' : 'cover-noimage');
+            const coverClass = coverUrl ? '' : 'cover-noimage';
 
             return `
             <div class="game-card" data-index="${gameIndex}" onclick="App.editGameByIndex(${gameIndex})">
@@ -1561,8 +1560,6 @@ const App = {
             if (preview) {
                 const direct = this.extractDirectImageUrls(preview);
                 if (direct.length > 0) return direct[0];
-                // 异步解析相册URL（下次渲染时显示）
-                this._resolveCoverAsync(game);
             }
             return null;
         } catch(e) { return null; }
