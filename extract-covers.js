@@ -95,82 +95,62 @@ async function main() {
     const raw = fs.readFileSync(GAMES_FILE, 'utf-8');
     const games = JSON.parse(raw);
 
-    let total = 0;
     let success = 0;
     let skipped = 0;
     let failed = 0;
     const errors = [];
 
-    for (let i = 0; i < games.length; i++) {
-        const game = games[i];
-        total++;
-
-        // 跳过已有 coverUrls 的（--force 模式下不跳过）
+    // 收集需要处理的游戏
+    const needProcess = [];
+    for (const game of games) {
         if (!forceMode && game.coverUrls && Array.isArray(game.coverUrls) && game.coverUrls.length > 0) {
             skipped++;
             continue;
         }
-
-        // 找预览链接
         if (!game._rawData) continue;
         const preview = game._rawData['预览'] || '';
-        if (!preview || !/^https?:\/\//i.test(preview) || preview.includes('notion.com')) {
-            continue;
-        }
-
-        // 每50条打印进度
-        if (total % 50 === 0) {
-            console.log(`进度: ${total}/${games.length} | 成功:${success} 失败:${failed} 跳过:${skipped}`);
-        }
-
-        try {
-            const html = await fetchUrl(preview, 15000);
-
-            // 检测加密相册（moebox 等），快速跳过
-            if (/需要密码|password.*required|enter.*password/i.test(html.substring(0, 2000))) {
-                failed++;
-                if (errors.length < 30) {
-                    errors.push(`[${game.title?.substring(0,30)}] 加密相册，跳过`);
-                }
-                continue;
-            }
-
-            const urls = extractImagesFromHtml(html, preview);
-
-            if (urls.length > 0) {
-                // 随机选 2-3 张（如果有的话）
-                const count = Math.min(urls.length, Math.floor(Math.random() * 2) + 2);
-                const shuffled = urls.sort(() => Math.random() - 0.5);
-                game.coverUrls = shuffled.slice(0, count);
-                success++;
-                
-                if (success % 20 === 0) {
-                    console.log(`  [${game.title.substring(0, 40)}] → ${count}张图`);
-                }
-            } else {
-                failed++;
-            }
-        } catch (e) {
-            failed++;
-            if (errors.length < 10) {
-                errors.push(`[${game.title?.substring(0,30)}] ${e.message}`);
-            }
-        }
-
-        // 避免请求过快，间隔 200ms
-        await new Promise(r => setTimeout(r, 200));
+        if (!preview || !/^https?:\/\//i.test(preview) || preview.includes('notion.com')) continue;
+        needProcess.push({ game, preview });
     }
 
-    // 写回文件
+    console.log(`需处理: ${needProcess.length}, 跳过: ${skipped}`);
+
+    // 并发处理（每批10个）
+    const batchSize = 10;
+    for (let i = 0; i < needProcess.length; i += batchSize) {
+        const batch = needProcess.slice(i, i + batchSize);
+        await Promise.all(batch.map(async ({ game, preview }) => {
+            try {
+                const html = await fetchUrl(preview, 15000);
+                if (/需要密码|password.*required|enter.*password/i.test(html.substring(0, 2000))) {
+                    failed++;
+                    if (errors.length < 30) errors.push(`[${game.title?.substring(0,30)}] 加密相册`);
+                    return;
+                }
+                const urls = extractImagesFromHtml(html, preview);
+                if (urls.length > 0) {
+                    const count = Math.min(urls.length, 10);
+                    game.coverUrls = urls.sort(() => Math.random() - 0.5).slice(0, count);
+                    success++;
+                } else {
+                    failed++;
+                }
+            } catch (e) {
+                failed++;
+                if (errors.length < 30) errors.push(`[${game.title?.substring(0,30)}] ${e.message}`);
+            }
+        }));
+        console.log(`进度: ${Math.min(i + batchSize, needProcess.length)}/${needProcess.length} | 成功:${success} 失败:${failed}`);
+    }
+
     console.log('\n写入 games.json...');
     fs.writeFileSync(GAMES_FILE, JSON.stringify(games, null, 2), 'utf-8');
 
     console.log('\n========== 完成 ==========');
-    console.log(`总处理: ${total}`);
     console.log(`成功提取: ${success}`);
     console.log(`失败(无图/超时): ${failed}`);
     console.log(`跳过(已有): ${skipped}`);
-    
+
     if (errors.length > 0) {
         console.log('\n部分错误:');
         errors.forEach(e => console.log('  -', e));

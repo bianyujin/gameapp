@@ -1761,23 +1761,21 @@ const App = {
     },
 
     clearCache() {
-        if (confirm('确定要重置数据吗？\n\n将清除本地缓存并恢复为默认数据。\n如需加载最新数据，请点击「从云端获取」同步。')) {
-            const keys = ['gamehub_games', 'gamehub_nextId', 'gamehub_has_synced',
-                'gamehub_last_sync_time', 'gamehub_local_data_version',
-                'gamehub_favorites', 'gamehub_view_history', 'gamehub_field_order'];
-            keys.forEach(k => Storage.removeItem(k));
+        const keys = ['gamehub_games', 'gamehub_nextId', 'gamehub_has_synced',
+            'gamehub_last_sync_time', 'gamehub_local_data_version',
+            'gamehub_favorites', 'gamehub_view_history', 'gamehub_field_order'];
+        keys.forEach(k => Storage.removeItem(k));
 
-            this._previewCache = new Map();
-            this._coverCache = {};
+        this._previewCache = new Map();
+        this._coverCache = {};
 
-            this.games = [];
-            this.nextId = 51;
-            this.globalFields = null;
+        this.games = [];
+        this.nextId = 51;
+        this.globalFields = null;
 
-            this.loadSampleData();
-            this.render();
-            this.showToast('已重置为默认数据，请手动点击同步');
-        }
+        this.loadSampleData();
+        this.render();
+        this.showToast('已重置，请点击同步加载数据');
     },
 
     openImportModal() {
