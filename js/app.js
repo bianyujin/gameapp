@@ -1566,7 +1566,7 @@ const App = {
     },
 
     // 封面预览开关状态
-    _coverEnabled: false,
+    _coverEnabled: true,
 
     initCoverSetting() {
         try {
