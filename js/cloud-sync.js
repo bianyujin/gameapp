@@ -932,9 +932,16 @@ const CloudSync = {
 
     async extractCsvFromZip(response) {
         try {
-            const JSZip = (window.JSZip || window.zip);
+            let JSZip = (window.JSZip || window.zip);
             if (!JSZip) {
-                throw new Error('需要JSZip库来解压ZIP文件');
+                await new Promise((resolve, reject) => {
+                    const s = document.createElement('script');
+                    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+                    s.onload = () => resolve();
+                    s.onerror = () => reject(new Error('JSZip加载失败'));
+                    document.head.appendChild(s);
+                });
+                JSZip = window.JSZip;
             }
             
             const arrayBuffer = await response.arrayBuffer();

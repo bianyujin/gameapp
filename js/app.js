@@ -81,7 +81,7 @@ const IDBCache = {
     }
 };
 
-const APP_VERSION = '2.3';
+const APP_VERSION = '2.31';
 
 // ========== 全局错误监控 ==========
 window.__errors = [];
@@ -144,18 +144,27 @@ const App = {
         this.bindEvents();
         this.render();
         this.startCarousel();
-        this.loadRandomImage();
         this.checkGuideBanner();
         this.initCoverSetting();
-        this.autoSync();
-        this.checkForUpdates();
         this.initHistory();
         this.detectDataSource();
-        
+
         const addGameFab = document.getElementById('addGameFab');
         if (addGameFab) {
             addGameFab.style.display = 'flex';
         }
+
+        const loadingScreen = document.getElementById('loadingScreen');
+        if (loadingScreen) {
+            loadingScreen.style.opacity = '0';
+            setTimeout(() => loadingScreen.remove(), 300);
+        }
+
+        setTimeout(() => {
+            this.loadRandomImage();
+            this.autoSync();
+            this.checkForUpdates();
+        }, 100);
     },
 
     initHistory() {
@@ -237,6 +246,39 @@ const App = {
         img.src = 'avatars/' + next;
         try { Storage.setItem('gamehub_avatar', next); } catch(e) {}
         this.showToast('换了新头像 🎲');
+    },
+
+    copyLink() {
+        const text = 'https://vlink.cc/bayj';
+        try {
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(text).then(() => {
+                    this.showToast('链接已复制');
+                }).catch(() => {
+                    this._copyFallback(text);
+                });
+            } else {
+                this._copyFallback(text);
+            }
+        } catch(e) {
+            this._copyFallback(text);
+        }
+    },
+
+    _copyFallback(text) {
+        try {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+            this.showToast('链接已复制');
+        } catch(e) {
+            this.showToast('复制失败，请手动复制');
+        }
     },
 
     checkGuideBanner() {
@@ -1715,7 +1757,7 @@ const App = {
                     </div>
                     <div class="modal-body" style="text-align:center;">
                         <p style="color:#f87171;font-size:13px;margin-bottom:12px;">封面预览图可能包含敏感内容，确认要打开吗？</p>
-                        <p style="font-size:12px;color:#64748b;margin-bottom:16px;">可前往 <a href="https://vlink.cc/bayj" target="_blank" style="color:#6366f1;">vlink.cc/bayj</a> 获取密码</p>
+                        <p style="font-size:12px;color:#64748b;margin-bottom:16px;">可前往 <span style="color:#6366f1;text-decoration:underline;cursor:pointer;" onclick="App.copyLink()">vlink.cc/bayj</span> 获取密码</p>
                         <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:16px;">
                             <input type="text" inputmode="text" autocomplete="off" id="ageInput" placeholder="请输入密码"
                                    style="width:180px;padding:8px 12px;border:1px solid #334155;border-radius:8px;background:#0f172a;color:#e2e8f0;text-align:center;font-size:14px;" />
