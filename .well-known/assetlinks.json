@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "dev.pages.gameapp_2e8.twa",
+    "sha256_cert_fingerprints": ["86:49:16:34:ED:5F:4E:DB:9B:BD:07:87:8E:21:DB:6F:50:7B:46:7B:E3:6E:A9:FF:67:20:8A:39:7E:27:04:1B"]
+  }
+}]
