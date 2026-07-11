@@ -161,6 +161,11 @@ const App = {
         }
 
         setTimeout(() => {
+            const ls = document.getElementById('loadingScreen');
+            if (ls) { ls.style.opacity = '0'; setTimeout(() => ls.remove(), 300); }
+        }, 3000);
+
+        setTimeout(() => {
             this.loadRandomImage();
             this.autoSync();
             this.checkForUpdates();

@@ -12,7 +12,7 @@
 </head>
 <body>
     <div id="loadingScreen" style="position:fixed;inset:0;background:#0f172a;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity .3s;">
-        <img src="avatars/tangmao.jpg" style="width:64px;height:64px;border-radius:50%;object-fit:cover;margin-bottom:16px;border:2px solid #6366f1;" onerror="this.style.display='none'">
+        <div style="width:64px;height:64px;border-radius:50%;border:2px solid #6366f1;background:url(avatars/tangmao.jpg) center/cover;margin-bottom:16px;"></div>
         <div style="color:#6366f1;font-size:16px;font-weight:600;">GAMEACG</div>
         <div style="color:#475569;font-size:12px;margin-top:6px;">加载中...</div>
     </div>
@@ -209,10 +209,10 @@
 
     <button class="add-game-fab" id="addGameFab" onclick="App.refreshPage()" title="刷新">🔄</button>
 
-    <script src="js/app.js?v=19"></script>
-    <script src="js/cloud-sync.js?v=9"></script>
-    <script src="js/admin.js?v=1" defer></script>
-    <script src="js/review.js?v=1" defer></script>
+    <script src="js/app.js?v=20"></script>
+    <script src="js/cloud-sync.js?v=10"></script>
+    <script src="js/admin.js?v=1"></script>
+    <script src="js/review.js?v=1"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const isWebView = /wv|WebView|Capacitor|MIT App Inventor/i.test(navigator.userAgent) || 
