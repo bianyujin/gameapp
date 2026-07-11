@@ -2,3 +2,4 @@ node_modules/
 games-full.json
 *.log
 .DS_Store
+_backup/
