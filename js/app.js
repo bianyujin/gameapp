@@ -81,7 +81,7 @@ const IDBCache = {
     }
 };
 
-const APP_VERSION = '2.1.0';
+const APP_VERSION = '2.3';
 
 // ========== 全局错误监控 ==========
 window.__errors = [];
@@ -189,19 +189,16 @@ const App = {
         const el = document.getElementById('dataSourceValue');
         if (!el) return;
         try {
-            const host = window.location.hostname;
-            if (host.includes('pages.dev')) {
-                el.textContent = 'Cloudflare 新版';
+            const ver = Storage.getItem('gamehub_local_data_version');
+            if (ver && ver.length >= 8) {
+                const y = ver.substring(0, 4);
+                const m = ver.substring(4, 6);
+                const d = ver.substring(6, 8);
+                el.textContent = y + '-' + m + '-' + d;
                 el.style.color = '#10b981';
-            } else if (host.includes('github.io')) {
-                el.textContent = 'GitHub 旧版';
-                el.style.color = '#f59e0b';
-            } else {
-                el.textContent = host || '本地';
-                el.style.color = '#6b7280';
             }
         } catch(e) {
-            el.textContent = '未知';
+            el.textContent = '未同步';
         }
     },
 

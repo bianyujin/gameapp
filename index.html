@@ -83,8 +83,8 @@
 
             <div id="page-profile" class="page">
                 <div class="profile-header">
-                    <div class="profile-avatar">
-                        <span class="avatar-text">GA</span>
+                    <div class="profile-avatar" style="cursor:pointer;overflow:hidden;background:none;" onclick="App.changeAvatar()">
+                        <img id="userAvatar" src="avatars/laopo.jpg" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" onerror="this.src='avatars/laopo.jpg'">
                     </div>
                     <div class="profile-info">
                         <h2 class="profile-name">GAMEACG 用户</h2>
@@ -131,12 +131,12 @@
                 </div>
 
                 <div class="settings-section">
-                    <h3 class="settings-title">用户</h3>
+                    <h3 class="settings-title">更多</h3>
                     <div class="settings-list">
-                        <div class="settings-item" id="userInfoItem" style="cursor:pointer;" onclick="App.changeAvatar()">
-                            <img id="userAvatar" src="avatars/laopo.jpg" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0;">
-                            <span class="settings-label">点击换头像</span>
-                            <span style="margin-left:auto;font-size:18px;">🎲</span>
+                        <div class="settings-item" id="notionBackupBtn">
+                            <span class="settings-icon">📋</span>
+                            <span class="settings-label">备用</span>
+                            <span class="settings-arrow">›</span>
                         </div>
                         <div class="settings-item">
                             <span class="settings-icon">🖼️</span>
@@ -166,28 +166,17 @@
                 </div>
 
                 <div class="settings-section">
-                    <h3 class="settings-title">更多</h3>
-                    <div class="settings-list">
-                        <div class="settings-item" id="notionBackupBtn">
-                            <span class="settings-icon">📋</span>
-                            <span class="settings-label">备用</span>
-                            <span class="settings-arrow">›</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="settings-section">
                     <h3 class="settings-title">关于</h3>
                     <div class="settings-list">
                         <div class="settings-item" id="versionItem">
                             <span class="settings-icon">ℹ️</span>
                             <span class="settings-label">版本</span>
-                            <span class="settings-value">2.1.0</span>
+                            <span class="settings-value">2.3</span>
                         </div>
                         <div class="settings-item" id="dataSourceItem">
-                            <span class="settings-icon">🌐</span>
-                            <span class="settings-label">加载源</span>
-                            <span class="settings-value" id="dataSourceValue" style="font-size:12px;">检测中</span>
+                            <span class="settings-icon">📅</span>
+                            <span class="settings-label">最后更新时间</span>
+                            <span class="settings-value" id="dataSourceValue" style="font-size:12px;">未同步</span>
                         </div>
                     </div>
                 </div>
@@ -214,7 +203,7 @@
 
     <button class="add-game-fab" id="addGameFab" onclick="App.refreshPage()" title="刷新">🔄</button>
 
-    <script src="js/app.js?v=17"></script>
+    <script src="js/app.js?v=18"></script>
     <script src="js/cloud-sync.js?v=8"></script>
     <script src="js/admin.js?v=1"></script>
     <script src="js/review.js?v=1"></script>
