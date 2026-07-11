@@ -150,6 +150,7 @@ const App = {
         this.autoSync();
         this.checkForUpdates();
         this.initHistory();
+        this.detectDataSource();
         
         const addGameFab = document.getElementById('addGameFab');
         if (addGameFab) {
@@ -182,6 +183,26 @@ const App = {
     closeModalById(modalId) {
         const modal = document.getElementById(modalId);
         if (modal) modal.remove();
+    },
+
+    detectDataSource() {
+        const el = document.getElementById('dataSourceValue');
+        if (!el) return;
+        try {
+            const host = window.location.hostname;
+            if (host.includes('pages.dev')) {
+                el.textContent = 'Cloudflare 新版';
+                el.style.color = '#10b981';
+            } else if (host.includes('github.io')) {
+                el.textContent = 'GitHub 旧版';
+                el.style.color = '#f59e0b';
+            } else {
+                el.textContent = host || '本地';
+                el.style.color = '#6b7280';
+            }
+        } catch(e) {
+            el.textContent = '未知';
+        }
     },
 
     checkGuideBanner() {
