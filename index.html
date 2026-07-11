@@ -6,16 +6,16 @@
     <meta name="theme-color" content="#6366f1">
     <meta name="referrer" content="no-referrer">
     <title>GAMEACG - 游戏整合平台</title>
+    <style>body{background:#0f172a;margin:0}</style>
     <link rel="stylesheet" href="css/styles.css?v=5">
     <link rel="manifest" href="manifest.json">
 </head>
 <body>
     <div id="loadingScreen" style="position:fixed;inset:0;background:#0f172a;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity .3s;">
-        <div style="font-size:48px;margin-bottom:16px;animation:spin 1s linear infinite;">🎮</div>
+        <img src="avatars/tangmao.jpg" style="width:64px;height:64px;border-radius:50%;object-fit:cover;margin-bottom:16px;border:2px solid #6366f1;" onerror="this.style.display='none'">
         <div style="color:#6366f1;font-size:16px;font-weight:600;">GAMEACG</div>
         <div style="color:#475569;font-size:12px;margin-top:6px;">加载中...</div>
     </div>
-    <style>@keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}</style>
     <div id="app">
         <header class="app-header" id="appHeader">
             <div class="header-title" id="headerTitle">首页</div>
@@ -177,7 +177,7 @@
                         <div class="settings-item" id="versionItem">
                             <span class="settings-icon">ℹ️</span>
                             <span class="settings-label">版本</span>
-                            <span class="settings-value">2.31</span>
+                            <span class="settings-value">2.32</span>
                         </div>
                         <div class="settings-item" id="dataSourceItem">
                             <span class="settings-icon">📅</span>
@@ -211,8 +211,8 @@
 
     <script src="js/app.js?v=19"></script>
     <script src="js/cloud-sync.js?v=9"></script>
-    <script src="js/admin.js?v=1"></script>
-    <script src="js/review.js?v=1"></script>
+    <script src="js/admin.js?v=1" defer></script>
+    <script src="js/review.js?v=1" defer></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const isWebView = /wv|WebView|Capacitor|MIT App Inventor/i.test(navigator.userAgent) || 

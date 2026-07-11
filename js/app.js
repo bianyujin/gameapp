@@ -81,7 +81,7 @@ const IDBCache = {
     }
 };
 
-const APP_VERSION = '2.31';
+const APP_VERSION = '2.32';
 
 // ========== 全局错误监控 ==========
 window.__errors = [];
