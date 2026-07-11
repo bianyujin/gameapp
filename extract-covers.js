@@ -159,6 +159,7 @@ async function main() {
     // 统计覆盖率
     const withCovers = games.filter(g => g.coverUrls && g.coverUrls.length > 0).length;
     console.log(`\n封面覆盖率: ${withCovers}/${games.length} (${(withCovers/games.length*100).toFixed(1)}%)`);
+    console.log('\n提示: 运行 node filter-qrcodes.js 可过滤二维码图片');
 }
 
 main().catch(console.error);
