@@ -133,10 +133,10 @@
                 <div class="settings-section">
                     <h3 class="settings-title">用户</h3>
                     <div class="settings-list">
-                        <div class="settings-item" id="userInfoItem">
-                            <span class="settings-icon">👤</span>
-                            <span class="settings-label" id="userStatusLabel">未登录</span>
-                            <button class="btn-small" id="userLoginBtn">登录</button>
+                        <div class="settings-item" id="userInfoItem" style="cursor:pointer;" onclick="App.changeAvatar()">
+                            <img id="userAvatar" src="avatars/laopo.jpg" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0;">
+                            <span class="settings-label">点击换头像</span>
+                            <span style="margin-left:auto;font-size:18px;">🎲</span>
                         </div>
                         <div class="settings-item">
                             <span class="settings-icon">🖼️</span>
@@ -214,7 +214,7 @@
 
     <button class="add-game-fab" id="addGameFab" onclick="App.refreshPage()" title="刷新">🔄</button>
 
-    <script src="js/app.js?v=16"></script>
+    <script src="js/app.js?v=17"></script>
     <script src="js/cloud-sync.js?v=8"></script>
     <script src="js/admin.js?v=1"></script>
     <script src="js/review.js?v=1"></script>
@@ -284,30 +284,9 @@
                     }, 2000);
                 });
             }
-            
-            const userLoginBtn = document.getElementById('userLoginBtn');
-            if (userLoginBtn) {
-                userLoginBtn.addEventListener('click', () => {
-                    if (ReviewSystem.isLoggedIn()) {
-                        if (confirm('确定要退出登录吗？')) {
-                            localStorage.removeItem('gamehub_current_user');
-                            ReviewSystem.currentUser = null;
-                            App.showToast('已退出登录');
-                            location.reload();
-                        }
-                    } else {
-                        ReviewSystem.openUserLogin();
-                    }
-                });
-            }
-            
-            if (ReviewSystem.isLoggedIn()) {
-                const userStatusLabel = document.getElementById('userStatusLabel');
-                const userLoginBtn = document.getElementById('userLoginBtn');
-                if (userStatusLabel) userStatusLabel.textContent = ReviewSystem.currentUser.name;
-                if (userLoginBtn) userLoginBtn.textContent = '退出';
-            }
-            
+
+            App.initAvatar();
+
             const addGameFab = document.getElementById('addGameFab');
             if (addGameFab) addGameFab.style.display = 'flex';
 

@@ -205,6 +205,43 @@ const App = {
         }
     },
 
+    _avatarFiles: [
+        '55520b490ac410d357763332af6fd4bd-512x512.jpg',
+        '74d8a211c287d4ce06de319d1e3d580b.jpg',
+        '7efc20410679c941fe6fee58f6e4c5ea-512x512.jpg',
+        '8a81afeb875865f83af9f6a650706f6f-512x512.jpg',
+        'b46f54c4376ef0697fd533215ea55a94.gif',
+        'bdeeaac869a7edb5aaf260a10725528e.gif',
+        'chibaifandemao.jpg',
+        'fce0bfa5bf7e70bfc7e2e3c79c91a24b.jpg',
+        'laopo.jpg',
+        'tangmao.jpg',
+        '投降喵.jpg'
+    ],
+
+    initAvatar() {
+        const img = document.getElementById('userAvatar');
+        if (!img) return;
+        let saved = null;
+        try { saved = Storage.getItem('gamehub_avatar'); } catch(e) {}
+        const file = saved || this._avatarFiles[Math.floor(Math.random() * this._avatarFiles.length)];
+        img.src = 'avatars/' + file;
+        img.onerror = () => { img.src = 'avatars/laopo.jpg'; };
+    },
+
+    changeAvatar() {
+        const img = document.getElementById('userAvatar');
+        if (!img) return;
+        const current = img.src.split('/').pop();
+        let next;
+        do {
+            next = this._avatarFiles[Math.floor(Math.random() * this._avatarFiles.length)];
+        } while (next === current && this._avatarFiles.length > 1);
+        img.src = 'avatars/' + next;
+        try { Storage.setItem('gamehub_avatar', next); } catch(e) {}
+        this.showToast('换了新头像 🎲');
+    },
+
     checkGuideBanner() {
         const hasSynced = Storage.getItem('gamehub_has_synced');
         const guideBanner = document.getElementById('guideBanner');
