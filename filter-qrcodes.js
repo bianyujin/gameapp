@@ -79,9 +79,24 @@ async function main() {
         for (var j = 0; j < game.coverUrls.length; j++) {
             var url = game.coverUrls[j];
             if (!isDetectable(url)) continue;
-            if (!forceMode && checkedUrls[url]) continue;
+            if (!forceMode && checkedUrls[url] === true) continue;
             tasks.push({ game: game, url: url });
         }
+    }
+
+    // 移除已知二维码URL（之前检测到的，标记为 false 的）
+    var qrRemoved = 0;
+    for (var i = 0; i < games.length; i++) {
+        var game = games[i];
+        if (!game.coverUrls || !Array.isArray(game.coverUrls)) continue;
+        var before = game.coverUrls.length;
+        game.coverUrls = game.coverUrls.filter(function(url) { return checkedUrls[url] !== false; });
+        var after = game.coverUrls.length;
+        qrRemoved += (before - after);
+    }
+    if (qrRemoved > 0) {
+        console.log('移除已知二维码图片: ' + qrRemoved + ' 张');
+        fs.writeFileSync(GAMES_FILE, JSON.stringify(games, null, 2), 'utf-8');
     }
 
     var skipped = Object.keys(checkedUrls).length;
@@ -127,7 +142,7 @@ async function main() {
     if (detected === 0) {
         console.log('No QR codes found, no update needed.');
         // 即使没发现二维码，也要更新检查记录
-        tasks.forEach(function(task) { checkedUrls[task.url] = true; });
+        tasks.forEach(function(task) { checkedUrls[task.url] = qrUrls[task.url] ? false : true; });
         try {
             fs.writeFileSync(CHECKED_FILE, JSON.stringify(checkedUrls), 'utf-8');
             console.log('已更新检查记录: ' + Object.keys(checkedUrls).length + ' 张图片');
@@ -157,8 +172,8 @@ async function main() {
     console.log('\nWriting games.json...');
     fs.writeFileSync(GAMES_FILE, JSON.stringify(games, null, 2), 'utf-8');
 
-    // 更新已检查记录
-    tasks.forEach(function(task) { checkedUrls[task.url] = true; });
+    // 更新已检查记录（二维码标记为 false，非二维码标记为 true）
+    tasks.forEach(function(task) { checkedUrls[task.url] = qrUrls[task.url] ? false : true; });
     try {
         fs.writeFileSync(CHECKED_FILE, JSON.stringify(checkedUrls), 'utf-8');
         console.log('已更新检查记录: ' + Object.keys(checkedUrls).length + ' 张图片');

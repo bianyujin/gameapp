@@ -121,16 +121,27 @@ async function main() {
         const batch = needProcess.slice(i, i + batchSize);
         await Promise.all(batch.map(async ({ game, preview }) => {
             try {
-                const html = await fetchUrl(preview, 15000);
-                if (/需要密码|password.*required|enter.*password/i.test(html.substring(0, 2000))) {
-                    failed++;
-                    if (errors.length < 30) errors.push(`[${game.title?.substring(0,30)}] 加密相册`);
-                    return;
+                // 预览字段可能包含多个URL（用换行分隔），分别请求
+                const previewUrls = preview.split('\n').map(s => s.trim()).filter(s => /^https?:\/\//i.test(s));
+                let allImgs = [];
+                for (const url of previewUrls) {
+                    try {
+                        const html = await fetchUrl(url, 15000);
+                        if (/需要密码|password.*required|enter.*password/i.test(html.substring(0, 2000))) {
+                            if (errors.length < 30) errors.push(`[${game.title?.substring(0,30)}] 加密相册: ${url}`);
+                            continue;
+                        }
+                        const imgs = extractImagesFromHtml(html, url);
+                        allImgs = allImgs.concat(imgs);
+                    } catch(e) {
+                        // 单个URL失败不影响其他URL
+                    }
                 }
-                const urls = extractImagesFromHtml(html, preview);
-                if (urls.length > 0) {
-                    const count = Math.min(urls.length, 10);
-                    game.coverUrls = urls.sort(() => Math.random() - 0.5).slice(0, count);
+                // 去重
+                const unique = [...new Set(allImgs)];
+                if (unique.length > 0) {
+                    const count = Math.min(unique.length, 10);
+                    game.coverUrls = unique.sort(() => Math.random() - 0.5).slice(0, count);
                     success++;
                 } else {
                     failed++;
