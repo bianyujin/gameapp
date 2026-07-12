@@ -26,9 +26,22 @@
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
+const readline = require('readline');
 
 const ROOT = __dirname;
 const GAMES_FILE = path.join(ROOT, 'games.json');
+const CSV_INPUT_DIR = path.join(ROOT, 'csv-input');
+
+// ========== 交互式输入 ==========
+function askQuestion(prompt) {
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    return new Promise(resolve => {
+        rl.question(prompt, answer => {
+            rl.close();
+            resolve(answer.trim());
+        });
+    });
+}
 
 // ========== CSV 解析（无需外部依赖）==========
 function parseCsvLine(line) {
@@ -113,23 +126,147 @@ function mapRowToGame(row, headers) {
     return game;
 }
 
+// ========== 补过滤二维码 ==========
+async function fixQrCodes() {
+    console.log('=== 补过滤二维码 ===\n');
+
+    // 读取当前的coverUrls
+    const currentGames = JSON.parse(fs.readFileSync(GAMES_FILE, 'utf-8'));
+    const currentUrls = new Set();
+    currentGames.forEach(g => { if (g.coverUrls) g.coverUrls.forEach(u => currentUrls.add(u)); });
+    console.log('当前有 ' + currentUrls.size + ' 张图片');
+
+    // 从git历史找更新前的数据（往前找，直到图片数比当前少）
+    console.log('正在查找更新前的数据...');
+    const tempFile = path.join(ROOT, '_old_games.json');
+    let oldUrls = new Set();
+    let foundCommit = null;
+    for (let i = 1; i <= 10; i++) {
+        try {
+            execSync('git show HEAD~' + i + ':games.json > _old_games.json', { cwd: ROOT, stdio: 'pipe' });
+        } catch(e) {
+            break;
+        }
+        try {
+            const oldGames = JSON.parse(fs.readFileSync(tempFile, 'utf-8'));
+            const urls = new Set();
+            oldGames.forEach(g => { if (g.coverUrls) g.coverUrls.forEach(u => urls.add(u)); });
+            console.log('  HEAD~' + i + ' (' + oldGames.length + '条): ' + urls.size + ' 张图片');
+            if (urls.size < currentUrls.size) {
+                oldUrls = urls;
+                foundCommit = 'HEAD~' + i;
+                break;
+            }
+        } catch(e) {
+            break;
+        }
+    }
+    try { fs.unlinkSync(tempFile); } catch(e) {}
+
+    if (!foundCommit) {
+        console.log('✅ 没有找到比当前更早的数据，无需补过滤');
+        return;
+    }
+    console.log('使用 ' + foundCommit + ' 作为更新前数据');
+
+    // 找出新增的URL
+    const newUrls = [...currentUrls].filter(u => !oldUrls.has(u) && /\.(jpg|jpeg|png)(\?|$)/i.test(u));
+    console.log('新增图片: ' + newUrls.length + ' 张');
+
+    if (newUrls.length === 0) {
+        console.log('✅ 没有需要补过滤的图片');
+        return;
+    }
+
+    // 从checked-urls.json中删除新增的URL
+    const CHECKED_FILE = path.join(ROOT, 'checked-urls.json');
+    let checked = {};
+    try { checked = JSON.parse(fs.readFileSync(CHECKED_FILE, 'utf-8')); } catch(e) {}
+    newUrls.forEach(u => delete checked[u]);
+    fs.writeFileSync(CHECKED_FILE, JSON.stringify(checked));
+
+    // 运行filter-qrcodes.js
+    console.log('\n开始过滤二维码...');
+    try {
+        execSync('node filter-qrcodes.js', { cwd: ROOT, stdio: 'inherit' });
+    } catch(e) {
+        console.log('过滤过程出错');
+    }
+
+    // 提交
+    console.log('\n正在提交...');
+    try {
+        execSync('git add games.json', { cwd: ROOT, stdio: 'pipe' });
+        execSync('git commit -m "补过滤新增图片的二维码"', { cwd: ROOT, stdio: 'pipe' });
+        execSync('git push', { cwd: ROOT, stdio: 'pipe' });
+        console.log('✅ 推送成功！');
+    } catch(e) {
+        console.log('⚠️ Git操作失败，数据已更新到本地，请手动push');
+    }
+}
+
 // ========== 主流程 ==========
 async function main() {
     console.log('=== GAMEACG 一键更新 ===\n');
 
-    // 解析参数
+    // 确保 csv-input 文件夹存在
+    if (!fs.existsSync(CSV_INPUT_DIR)) fs.mkdirSync(CSV_INPUT_DIR, { recursive: true });
+
+    // 解析命令行参数
     const args = process.argv.slice(2);
-    const noCovers = args.includes('--no-covers');
-    const forceCovers = args.includes('--force-covers');
-    const csvArg = args.find(a => !a.startsWith('--'));
+    let noCovers = args.includes('--no-covers');
+    let forceCovers = args.includes('--force-covers');
+    let csvArg = args.find(a => !a.startsWith('--'));
+    let fixQrOnly = args.includes('--fix-qr');
+
+    // 没有参数时，进入交互式菜单
+    if (args.length === 0) {
+        console.log('请把CSV文件放到 csv-input 文件夹里\n');
+        console.log('请选择更新方式：');
+        console.log('  1. 默认更新（推荐）- 更新数据 + 提取新封面图 + 过滤二维码');
+        console.log('  2. 只更新数据 - 不提取封面图（最快）');
+        console.log('  3. 全部重新提取 - 强制重新提取所有封面图（很慢）');
+        console.log('  4. 补过滤二维码 - 只检查上次没检查的图片');
+        console.log('');
+        const choice = await askQuestion('请输入选项 (1/2/3/4，直接回车=1): ');
+        if (choice === '2') { noCovers = true; }
+        else if (choice === '3') { forceCovers = true; }
+        else if (choice === '4') { fixQrOnly = true; }
+    }
+
+    // 补过滤二维码模式
+    if (fixQrOnly) {
+        await fixQrCodes();
+        return;
+    }
 
     if (noCovers) console.log('📌 模式: 跳过封面图提取');
     if (forceCovers) console.log('📌 模式: 强制重新提取所有封面图');
 
-    // 1. 查找 CSV 文件
+    // 1. 查找 CSV 文件（优先 csv-input 文件夹）
     let csvPath = csvArg;
-    if (csvPath && fs.existsSync(csvPath) && fs.statSync(csvPath).isDirectory()) {
-        // 参数是目录：查找该目录下最新的 GAMEACG _all.csv
+    if (!csvPath && fs.existsSync(CSV_INPUT_DIR)) {
+        // 优先从 csv-input 文件夹查找
+        const csvFiles = fs.readdirSync(CSV_INPUT_DIR)
+            .filter(f => f.endsWith('_all.csv') && f.includes('GAMEACG'))
+            .map(f => ({ name: path.join(CSV_INPUT_DIR, f), time: fs.statSync(path.join(CSV_INPUT_DIR, f)).mtimeMs }))
+            .sort((a, b) => b.time - a.time);
+        if (csvFiles.length > 0) {
+            csvPath = csvFiles[0].name;
+            console.log(`csv-input 文件夹找到CSV: ${path.basename(csvPath)}`);
+        } else {
+            // 回退：查找任意 csv
+            const anyCsv = fs.readdirSync(CSV_INPUT_DIR)
+                .filter(f => f.endsWith('.csv'))
+                .map(f => ({ name: path.join(CSV_INPUT_DIR, f), time: fs.statSync(path.join(CSV_INPUT_DIR, f)).mtimeMs }))
+                .sort((a, b) => b.time - a.time);
+            if (anyCsv.length > 0) {
+                csvPath = anyCsv[0].name;
+                console.log(`csv-input 文件夹找到CSV: ${path.basename(csvPath)}`);
+            }
+        }
+    } else if (csvPath && fs.existsSync(csvPath) && fs.statSync(csvPath).isDirectory()) {
+        // 命令行指定了目录
         const csvFiles = fs.readdirSync(csvPath)
             .filter(f => f.endsWith('_all.csv') && f.includes('GAMEACG'))
             .map(f => ({ name: path.join(csvPath, f), time: fs.statSync(path.join(csvPath, f)).mtimeMs }))
@@ -138,7 +275,6 @@ async function main() {
             csvPath = csvFiles[0].name;
             console.log(`目录中找到CSV: ${path.basename(csvPath)}`);
         } else {
-            // 回退：查找目录下任意 csv
             const anyCsv = fs.readdirSync(csvPath)
                 .filter(f => f.endsWith('.csv'))
                 .map(f => ({ name: path.join(csvPath, f), time: fs.statSync(path.join(csvPath, f)).mtimeMs }))
@@ -149,7 +285,7 @@ async function main() {
             }
         }
     } else if (!csvPath) {
-        // 自动查找仓库根目录的 CSV
+        // 自动查找仓库根目录
         const csvFiles = fs.readdirSync(ROOT)
             .filter(f => f.endsWith('.csv'))
             .map(f => ({ name: f, time: fs.statSync(path.join(ROOT, f)).mtimeMs }))
@@ -161,11 +297,10 @@ async function main() {
     }
 
     if (!csvPath || !fs.existsSync(csvPath)) {
-        console.error('❌ 未找到CSV文件');
-        console.error('   用法:');
-        console.error('   node update.js <CSV目录>     # 指定目录');
-        console.error('   node update.js <CSV文件名>   # 指定文件');
-        console.error('   node update.js               # 自动查找');
+        console.error('\n❌ 未找到CSV文件！');
+        console.error('\n   请把飞书导出的CSV文件放到：');
+        console.error('   d:\\trae_project\\gameapp\\csv-input\\');
+        console.error('\n   然后重新运行本脚本');
         process.exit(1);
     }
 
@@ -231,6 +366,13 @@ async function main() {
     if (noCovers) {
         console.log('\n⏭️  跳过封面图提取');
     } else {
+        // 记录提取前的coverUrls
+        const beforeUrls = new Set();
+        try {
+            const beforeGames = JSON.parse(fs.readFileSync(GAMES_FILE, 'utf-8'));
+            beforeGames.forEach(g => { if (g.coverUrls) g.coverUrls.forEach(u => beforeUrls.add(u)); });
+        } catch(e) {}
+
         console.log('\n正在提取封面图（只提取没有封面图的游戏）...');
         const coverCmd = forceCovers ? 'node extract-covers.js --force' : 'node extract-covers.js';
         try {
@@ -239,10 +381,30 @@ async function main() {
             console.log('封面图提取跳过（可稍后单独运行）');
         }
 
-        // 7.5 自动过滤二维码图片
-        console.log('\n正在过滤二维码图片...');
+        // 找出新增的coverUrls，只检查这些
+        console.log('\n正在过滤二维码图片（只检查新增的）...');
         try {
-            execSync('node filter-qrcodes.js', { cwd: ROOT, stdio: 'inherit' });
+            const afterGames = JSON.parse(fs.readFileSync(GAMES_FILE, 'utf-8'));
+            const newUrls = [];
+            afterGames.forEach(g => {
+                if (g.coverUrls) g.coverUrls.forEach(u => {
+                    if (!beforeUrls.has(u) && /\.(jpg|jpeg|png)(\?|$)/i.test(u)) newUrls.push(u);
+                });
+            });
+
+            if (newUrls.length > 0) {
+                console.log(`发现 ${newUrls.length} 张新图片需要检查`);
+                // 从checked-urls.json中删除新增的URL，让它们被重新检查
+                const CHECKED_FILE = path.join(ROOT, 'checked-urls.json');
+                let checked = {};
+                try { checked = JSON.parse(fs.readFileSync(CHECKED_FILE, 'utf-8')); } catch(e) {}
+                newUrls.forEach(u => delete checked[u]);
+                fs.writeFileSync(CHECKED_FILE, JSON.stringify(checked));
+                // 运行filter-qrcodes.js（只检查新增的）
+                execSync('node filter-qrcodes.js', { cwd: ROOT, stdio: 'inherit' });
+            } else {
+                console.log('没有新图片需要检查');
+            }
         } catch(e) {
             console.log('二维码过滤跳过（可稍后单独运行）');
         }
