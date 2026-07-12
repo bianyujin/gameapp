@@ -7,6 +7,7 @@ const { PNG } = require('pngjs');
 const jpeg = require('jpeg-js');
 
 const GAMES_FILE = path.join(__dirname, 'games.json');
+const CHECKED_FILE = path.join(__dirname, 'checked-urls.json');
 
 function fetchBuffer(url, timeoutMs) {
     timeoutMs = timeoutMs || 15000;
@@ -54,6 +55,19 @@ function isDetectable(url) {
 }
 
 async function main() {
+    var forceMode = process.argv.includes('--force');
+
+    // 读取已检查过的 URL 记录
+    var checkedUrls = {};
+    if (!forceMode) {
+        try {
+            checkedUrls = JSON.parse(fs.readFileSync(CHECKED_FILE, 'utf-8'));
+            console.log('已检查过的图片: ' + Object.keys(checkedUrls).length + ' 张');
+        } catch(e) {
+            console.log('无历史检查记录，将检查所有图片');
+        }
+    }
+
     console.log('Reading games.json...');
     var raw = fs.readFileSync(GAMES_FILE, 'utf-8');
     var games = JSON.parse(raw);
@@ -65,11 +79,18 @@ async function main() {
         for (var j = 0; j < game.coverUrls.length; j++) {
             var url = game.coverUrls[j];
             if (!isDetectable(url)) continue;
+            if (!forceMode && checkedUrls[url]) continue;
             tasks.push({ game: game, url: url });
         }
     }
 
-    console.log('Need check: ' + tasks.length + ' images');
+    var skipped = Object.keys(checkedUrls).length;
+    console.log('Need check: ' + tasks.length + ' images (skipped ' + skipped + ' already checked)');
+
+    if (tasks.length === 0) {
+        console.log('✅ 没有新图片需要检查');
+        return;
+    }
     var detected = 0;
     var checked = 0;
     var errors = 0;
@@ -105,6 +126,14 @@ async function main() {
 
     if (detected === 0) {
         console.log('No QR codes found, no update needed.');
+        // 即使没发现二维码，也要更新检查记录
+        tasks.forEach(function(task) { checkedUrls[task.url] = true; });
+        try {
+            fs.writeFileSync(CHECKED_FILE, JSON.stringify(checkedUrls), 'utf-8');
+            console.log('已更新检查记录: ' + Object.keys(checkedUrls).length + ' 张图片');
+        } catch(e) {
+            console.log('⚠️ 检查记录保存失败:', e.message);
+        }
         return;
     }
 
@@ -127,6 +156,16 @@ async function main() {
 
     console.log('\nWriting games.json...');
     fs.writeFileSync(GAMES_FILE, JSON.stringify(games, null, 2), 'utf-8');
+
+    // 更新已检查记录
+    tasks.forEach(function(task) { checkedUrls[task.url] = true; });
+    try {
+        fs.writeFileSync(CHECKED_FILE, JSON.stringify(checkedUrls), 'utf-8');
+        console.log('已更新检查记录: ' + Object.keys(checkedUrls).length + ' 张图片');
+    } catch(e) {
+        console.log('⚠️ 检查记录保存失败:', e.message);
+    }
+
     console.log('Done!');
 }
 

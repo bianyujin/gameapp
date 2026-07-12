@@ -1,17 +1,26 @@
 /**
  * 一键更新脚本
- * 
+ *
  * 用法:
- *   node update.js [csv文件名] [选项]
- * 
+ *   node update.js [CSV目录或文件] [选项]
+ *
  * 选项:
  *   --no-covers    跳过封面图提取（只更新数据）
  *   --force-covers 强制重新提取所有封面图（包括已有的）
- * 
+ *
+ * 默认行为:
+ *   - 读取CSV更新 games.json
+ *   - 保留已有封面图，只提取没有封面图的游戏
+ *   - 自动过滤二维码图片
+ *   - 自动更新 config.json 数据版本号
+ *   - 自动提交并推送到 GitHub
+ *
  * 示例:
- *   node update.js mydata.csv                # 更新数据+提取新封面图
- *   node update.js mydata.csv --no-covers    # 只更新数据，不提取封面
- *   node update.js --force-covers            # 用最新CSV+强制重新提取所有封面
+ *   node update.js "D:\备份\260713"           # 指定目录，自动找 _all.csv
+ *   node update.js mydata.csv                 # 指定CSV文件
+ *   node update.js                            # 自动查找仓库根目录CSV
+ *   node update.js "D:\备份\260713" --no-covers    # 只更新数据，不提取封面
+ *   node update.js "D:\备份\260713" --force-covers  # 强制重新提取所有封面
  */
 
 const fs = require('fs');
@@ -119,8 +128,28 @@ async function main() {
 
     // 1. 查找 CSV 文件
     let csvPath = csvArg;
-    if (!csvPath) {
-        // 自动查找最新的 CSV 文件
+    if (csvPath && fs.existsSync(csvPath) && fs.statSync(csvPath).isDirectory()) {
+        // 参数是目录：查找该目录下最新的 GAMEACG _all.csv
+        const csvFiles = fs.readdirSync(csvPath)
+            .filter(f => f.endsWith('_all.csv') && f.includes('GAMEACG'))
+            .map(f => ({ name: path.join(csvPath, f), time: fs.statSync(path.join(csvPath, f)).mtimeMs }))
+            .sort((a, b) => b.time - a.time);
+        if (csvFiles.length > 0) {
+            csvPath = csvFiles[0].name;
+            console.log(`目录中找到CSV: ${path.basename(csvPath)}`);
+        } else {
+            // 回退：查找目录下任意 csv
+            const anyCsv = fs.readdirSync(csvPath)
+                .filter(f => f.endsWith('.csv'))
+                .map(f => ({ name: path.join(csvPath, f), time: fs.statSync(path.join(csvPath, f)).mtimeMs }))
+                .sort((a, b) => b.time - a.time);
+            if (anyCsv.length > 0) {
+                csvPath = anyCsv[0].name;
+                console.log(`目录中找到CSV: ${path.basename(csvPath)}`);
+            }
+        }
+    } else if (!csvPath) {
+        // 自动查找仓库根目录的 CSV
         const csvFiles = fs.readdirSync(ROOT)
             .filter(f => f.endsWith('.csv'))
             .map(f => ({ name: f, time: fs.statSync(path.join(ROOT, f)).mtimeMs }))
@@ -133,8 +162,10 @@ async function main() {
 
     if (!csvPath || !fs.existsSync(csvPath)) {
         console.error('❌ 未找到CSV文件');
-        console.error('   请把Notion导出的CSV文件放到仓库根目录');
-        console.error('   然后运行: node update.js <csv文件名>');
+        console.error('   用法:');
+        console.error('   node update.js <CSV目录>     # 指定目录');
+        console.error('   node update.js <CSV文件名>   # 指定文件');
+        console.error('   node update.js               # 自动查找');
         process.exit(1);
     }
 
@@ -181,23 +212,46 @@ async function main() {
     fs.writeFileSync(GAMES_FILE, JSON.stringify(games, null, 2), 'utf-8');
     console.log(`\n✅ 已写入 ${games.length} 条数据到 games.json`);
 
-    // 7. 提取封面图
+    // 6.5 更新 config.json 数据版本号
+    const today = new Date();
+    const yyyymmdd = today.getFullYear().toString() +
+        String(today.getMonth() + 1).padStart(2, '0') +
+        String(today.getDate()).padStart(2, '0');
+    try {
+        const configPath = path.join(ROOT, 'config.json');
+        const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+        config.games_data_version = yyyymmdd;
+        fs.writeFileSync(configPath, JSON.stringify(config), 'utf-8');
+        console.log(`已更新数据版本号: ${yyyymmdd}`);
+    } catch(e) {
+        console.log('⚠️  config.json 更新失败:', e.message);
+    }
+
+    // 7. 提取封面图 + 过滤二维码
     if (noCovers) {
         console.log('\n⏭️  跳过封面图提取');
     } else {
-        console.log('\n正在提取封面图...');
+        console.log('\n正在提取封面图（只提取没有封面图的游戏）...');
         const coverCmd = forceCovers ? 'node extract-covers.js --force' : 'node extract-covers.js';
         try {
             execSync(coverCmd, { cwd: ROOT, stdio: 'inherit' });
         } catch(e) {
             console.log('封面图提取跳过（可稍后单独运行）');
         }
+
+        // 7.5 自动过滤二维码图片
+        console.log('\n正在过滤二维码图片...');
+        try {
+            execSync('node filter-qrcodes.js', { cwd: ROOT, stdio: 'inherit' });
+        } catch(e) {
+            console.log('二维码过滤跳过（可稍后单独运行）');
+        }
     }
 
     // 8. Git 操作
     console.log('\n正在提交...');
     try {
-        execSync('git add games.json', { cwd: ROOT, stdio: 'pipe' });
+        execSync('git add games.json config.json', { cwd: ROOT, stdio: 'pipe' });
         const diff = execSync('git diff --cached --quiet games.json', { cwd: ROOT }).toString().trim();
         if (diff === '') {
             console.log('数据无变化，跳过提交');
