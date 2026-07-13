@@ -7,36 +7,13 @@
     <meta name="referrer" content="no-referrer">
     <title>GAMEACG - 游戏整合平台</title>
     <style>body{background:#0f172a;margin:0}</style>
-    <link rel="preload" href="js/app.min.js?v=21" as="script">
+    <link rel="preload" href="js/app.min.js?v=22" as="script">
     <link rel="preload" href="js/cloud-sync.min.js?v=11" as="script">
     <link rel="dns-prefetch" href="https://image.acg.lol">
     <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
     <link rel="dns-prefetch" href="https://gameapp-2e8.pages.dev">
     <link rel="stylesheet" href="css/styles.min.css?v=6">
     <link rel="manifest" href="manifest.json">
-    <script>
-    // 数据迁移脚本（从旧版 GitHub Pages 迁移收藏和历史）
-    (function() {
-        var p = new URLSearchParams(location.search);
-        if (p.get('export_data') === '1') {
-            try {
-                var d = { f: localStorage.getItem('gamehub_favorites') || '[]', h: localStorage.getItem('gamehub_view_history') || '[]' };
-                location.href = 'https://gameapp-2e8.pages.dev/#m=' + btoa(encodeURIComponent(JSON.stringify(d)));
-            } catch(e) { alert('导出失败: ' + e.message); }
-            return;
-        }
-        var m = location.hash.match(/^#m=(.+)/);
-        if (m) {
-            try {
-                var d = JSON.parse(decodeURIComponent(atob(m[1])));
-                if (d.f) localStorage.setItem('gamehub_favorites', d.f);
-                if (d.h) localStorage.setItem('gamehub_view_history', d.h);
-                history.replaceState(null, '', location.pathname);
-                alert('数据迁移成功！收藏和历史已恢复。');
-            } catch(e) { alert('迁移失败: ' + e.message); }
-        }
-    })();
-    </script>
 </head>
 <body>
     <div id="loadingScreen" style="position:fixed;inset:0;background:#0f172a;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity .3s;">
@@ -167,11 +144,6 @@
                 <div class="settings-section">
                     <h3 class="settings-title">更多</h3>
                     <div class="settings-list">
-                        <div class="settings-item" onclick="if(confirm('将跳转到旧版页面获取收藏和历史，然后自动返回。是否继续？'))location.href='https://bianyujin.github.io/gameapp/?export_data=1'">
-                            <span class="settings-icon">📦</span>
-                            <span class="settings-label">从旧版迁移数据</span>
-                            <span class="settings-arrow">›</span>
-                        </div>
                         <div class="settings-item" id="notionBackupBtn">
                             <span class="settings-icon">📋</span>
                             <span class="settings-label">备用</span>
@@ -210,7 +182,7 @@
                         <div class="settings-item" id="versionItem">
                             <span class="settings-icon">ℹ️</span>
                             <span class="settings-label">版本</span>
-                            <span class="settings-value">2.33</span>
+                            <span class="settings-value">2.34</span>
                         </div>
                         <div class="settings-item" id="dataSourceItem">
                             <span class="settings-icon">📅</span>
@@ -242,7 +214,7 @@
 
     <button class="add-game-fab" id="addGameFab" onclick="App.refreshPage()" title="刷新">🔄</button>
 
-    <script src="js/app.min.js?v=21"></script>
+    <script src="js/app.min.js?v=22"></script>
     <script src="js/cloud-sync.min.js?v=11"></script>
     <script src="js/admin.min.js?v=2"></script>
     <script src="js/review.min.js?v=2"></script>

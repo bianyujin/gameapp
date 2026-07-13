@@ -81,7 +81,7 @@ const IDBCache = {
     }
 };
 
-const APP_VERSION = '2.33';
+const APP_VERSION = '2.34';
 
 // ========== 全局错误监控 ==========
 window.__errors = [];
@@ -782,6 +782,7 @@ const App = {
         hist.unshift({ id: game.id, title: game.title, icon: game.icon, category: game.category, time: Date.now() });
         if (hist.length > 100) hist = hist.slice(0, 100);
         this.saveHistory(hist);
+        this.updateProfileCounts();
     },
 
     showFavorites() {
