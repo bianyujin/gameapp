@@ -123,7 +123,8 @@ function mapRowToGame(row, headers) {
 
     const titleKw = ['游戏名', '游戏名称', '名称', '标题'];
     for (const kw of titleKw) { const v = get(kw); if (v) { game.title = v; break; } }
-    if (!game.title) game.title = '未命名';
+    // 合集表格没有"游戏名"字段，用"文件ID"作为标题回退
+    if (!game.title) game.title = get('文件ID') || '未命名';
 
     headers.forEach(h => {
         const val = (row[h] || '').trim();
@@ -213,7 +214,16 @@ async function syncSource(source, outputFile, label) {
     // 字段统一和排序（与 update.js 一致）
     const allFields = new Set();
     filtered.forEach(g => g._rawFields && g._rawFields.forEach(f => allFields.add(f)));
-    const sortedFields = Array.from(allFields).sort((a, b) => a.localeCompare(b, 'zh-CN'));
+    const sortedFields = Array.from(allFields).sort((a, b) => {
+        // 特殊处理：评级（成品级别）... 排在 评级 前面
+        const aIsRatingDetail = a.includes('评级') && a.includes('成品级别');
+        const bIsRatingDetail = b.includes('评级') && b.includes('成品级别');
+        const aIsRating = a === '评级';
+        const bIsRating = b === '评级';
+        if (aIsRatingDetail && bIsRating) return -1;
+        if (aIsRating && bIsRatingDetail) return 1;
+        return a.localeCompare(b, 'zh-CN');
+    });
     filtered.forEach(g => {
         g._rawFields = [...sortedFields];
         sortedFields.forEach(f => { if (!g._rawData[f]) g._rawData[f] = ''; });
