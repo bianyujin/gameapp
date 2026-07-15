@@ -1408,23 +1408,26 @@ const App = {
         return new Date(0);
     },
 
-    // 获取游戏的修改时间戳（用于排序），优先用精确的原始字段
+    // 获取游戏的时间戳（用于排序）
+    // 优先用"创建时间"（Notion同步不会重置），"最后修改时间"作备选
+    // 时间字段为空时返回0（排最后，算最旧的）
     getGameDate(game) {
-        // 1. 最优先：从 _rawData 取最后修改时间（有精确到分钟的时间）
         if (game._rawData) {
-            const raw = game._rawData['最后修改时间'] || game._rawData['最后修改'] || '';
-            if (raw) {
-                const d = this.parseChineseDate(raw);
+            // 1. 优先：创建时间（稳定，不被同步重置）
+            const created = game._rawData['创建时间'] || '';
+            if (created) {
+                const d = this.parseChineseDate(created);
+                if (d.getTime() > 0) return d.getTime();
+            }
+            // 2. 备选：最后修改时间
+            const edited = game._rawData['最后修改时间'] || game._rawData['最后修改'] || '';
+            if (edited) {
+                const d = this.parseChineseDate(edited);
                 if (d.getTime() > 0) return d.getTime();
             }
         }
-        // 2. 兜底：用 updateDate 字段
-        if (game.updateDate) {
-            const d = new Date(game.updateDate);
-            if (!isNaN(d.getTime())) return d.getTime();
-        }
-        // 3. 最兜底：id 越大越新
-        return game.id || 0;
+        // 时间字段为空 → 返回0，排最后（算最旧的）
+        return 0;
     },
 
     // 获取预览相册URL（用于懒加载提取图片）

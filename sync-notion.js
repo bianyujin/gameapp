@@ -44,6 +44,25 @@ function fetchNotion(url, body) {
     });
 }
 
+// Notion ISO 时间转中文格式（北京时间）：2026-07-15T13:17:00.000Z → 2026年7月15日 21:17
+function formatNotionDate(isoStr) {
+    if (!isoStr) return '';
+    const d = new Date(isoStr);
+    if (isNaN(d.getTime())) return '';
+    // 转北京时间（UTC+8）
+    const utc = d.getTime() + (d.getTimezoneOffset() * 60000);
+    const beijing = new Date(utc + 8 * 3600000);
+    const y = beijing.getFullYear();
+    const m = beijing.getMonth() + 1;
+    const day = beijing.getDate();
+    const h = String(beijing.getHours()).padStart(2, '0');
+    const min = String(beijing.getMinutes()).padStart(2, '0');
+    return y + '年' + m + '月' + day + '日 ' + h + ':' + min;
+}
+
+// 需要忽略的字段（以前 CSV 数据里没有这些，保持一致）
+const IGNORED_FIELDS = ['引擎'];
+
 function extractPropValue(prop) {
     if (!prop) return '';
     switch (prop.type) {
@@ -56,8 +75,8 @@ function extractPropValue(prop) {
         case 'checkbox': return prop.checkbox ? '是' : '否';
         case 'date': return prop.date ? prop.date.start : '';
         case 'status': return prop.status ? prop.status.name : '';
-        case 'created_time': return prop.created_time || '';
-        case 'last_edited_time': return prop.last_edited_time || '';
+        case 'created_time': return formatNotionDate(prop.created_time);
+        case 'last_edited_time': return formatNotionDate(prop.last_edited_time);
         case 'files': return (prop.files || []).map(f => (f.file && f.file.url) || (f.external && f.external.url) || '').filter(Boolean).join('\n');
         default: return '';
     }
@@ -68,6 +87,8 @@ function notionPageToRow(page) {
     const props = page.properties || {};
     const row = {};
     for (const key in props) {
+        if (IGNORED_FIELDS.includes(key)) continue;
+        if (key.includes('\uFFFD')) continue; // 过滤乱码字段名（Notion API 偶发返回重复的乱码版字段）
         row[key] = extractPropValue(props[key]);
     }
     return row;
