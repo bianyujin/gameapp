@@ -54,23 +54,15 @@ function isDetectable(url) {
     return /\.(jpg|jpeg|png)(\?|$)/i.test(url);
 }
 
-async function main() {
-    var forceMode = process.argv.includes('--force');
-
-    // 读取已检查过的 URL 记录
-    var checkedUrls = {};
-    if (!forceMode) {
-        try {
-            checkedUrls = JSON.parse(fs.readFileSync(CHECKED_FILE, 'utf-8'));
-            console.log('已检查过的图片: ' + Object.keys(checkedUrls).length + ' 张');
-        } catch(e) {
-            console.log('无历史检查记录，将检查所有图片');
-        }
+async function processFile(filePath, label, checkedUrls, forceMode) {
+    console.log('\n--- ' + label + ' ---');
+    var games;
+    try {
+        games = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+    } catch(e) {
+        console.log('文件不存在或为空，跳过');
+        return;
     }
-
-    console.log('Reading games.json...');
-    var raw = fs.readFileSync(GAMES_FILE, 'utf-8');
-    var games = JSON.parse(raw);
 
     var tasks = [];
     for (var i = 0; i < games.length; i++) {
@@ -84,33 +76,26 @@ async function main() {
         }
     }
 
-    // 移除已知二维码URL（之前检测到的，标记为 false 的）
+    // 移除已知二维码URL
     var qrRemoved = 0;
     for (var i = 0; i < games.length; i++) {
         var game = games[i];
         if (!game.coverUrls || !Array.isArray(game.coverUrls)) continue;
         var before = game.coverUrls.length;
         game.coverUrls = game.coverUrls.filter(function(url) { return checkedUrls[url] !== false; });
-        var after = game.coverUrls.length;
-        qrRemoved += (before - after);
+        qrRemoved += (before - game.coverUrls.length);
     }
-    if (qrRemoved > 0) {
-        console.log('移除已知二维码图片: ' + qrRemoved + ' 张');
-        fs.writeFileSync(GAMES_FILE, JSON.stringify(games, null, 2), 'utf-8');
-    }
+    if (qrRemoved > 0) console.log('移除已知二维码: ' + qrRemoved + ' 张');
 
-    var skipped = Object.keys(checkedUrls).length;
-    console.log('Need check: ' + tasks.length + ' images (skipped ' + skipped + ' already checked)');
-
+    console.log('Need check: ' + tasks.length + ' images');
     if (tasks.length === 0) {
         console.log('✅ 没有新图片需要检查');
+        fs.writeFileSync(filePath, JSON.stringify(games, null, 2), 'utf-8');
         return;
     }
-    var detected = 0;
-    var checked = 0;
-    var errors = 0;
-    var qrUrls = {};
 
+    var detected = 0, checked = 0, errors = 0;
+    var qrUrls = {};
     var batchSize = 10;
     for (var i = 0; i < tasks.length; i += batchSize) {
         var batch = tasks.slice(i, i + batchSize);
@@ -120,67 +105,54 @@ async function main() {
                 if (isQRCode(buf)) {
                     detected++;
                     qrUrls[task.url] = true;
-                    if (detected <= 30) {
-                        console.log('  [QR] ' + (task.game.title || '').substring(0, 25) + ' - ' + task.url.substring(0, 60));
-                    }
+                    if (detected <= 30) console.log('  [QR] ' + (task.game.title || '').substring(0, 25));
                 }
-            } catch(e) {
-                errors++;
-            }
+            } catch(e) { errors++; }
             checked++;
         }));
         if ((i + batchSize) % 100 === 0 || i + batchSize >= tasks.length) {
-            console.log('Progress: ' + Math.min(i + batchSize, tasks.length) + '/' + tasks.length + ' | QR:' + detected + ' Err:' + errors);
+            console.log('Progress: ' + Math.min(i + batchSize, tasks.length) + '/' + tasks.length + ' | QR:' + detected);
         }
     }
 
-    console.log('\n========== Done ==========');
-    console.log('Checked: ' + checked);
-    console.log('QR found: ' + detected);
-    console.log('Errors: ' + errors);
+    console.log('Checked: ' + checked + ', QR: ' + detected);
 
-    if (detected === 0) {
-        console.log('No QR codes found, no update needed.');
-        // 即使没发现二维码，也要更新检查记录
-        tasks.forEach(function(task) { checkedUrls[task.url] = qrUrls[task.url] ? false : true; });
-        try {
-            fs.writeFileSync(CHECKED_FILE, JSON.stringify(checkedUrls), 'utf-8');
-            console.log('已更新检查记录: ' + Object.keys(checkedUrls).length + ' 张图片');
-        } catch(e) {
-            console.log('⚠️ 检查记录保存失败:', e.message);
-        }
-        return;
-    }
-
-    var removed = 0;
-    var gamesAffected = 0;
+    var removed = 0, gamesAffected = 0;
     for (var i = 0; i < games.length; i++) {
         var game = games[i];
         if (!game.coverUrls || !Array.isArray(game.coverUrls)) continue;
         var before = game.coverUrls.length;
         game.coverUrls = game.coverUrls.filter(function(url) { return !qrUrls[url]; });
-        var after = game.coverUrls.length;
-        if (before > after) {
-            removed += (before - after);
-            gamesAffected++;
-        }
+        if (before > game.coverUrls.length) { removed += (before - game.coverUrls.length); gamesAffected++; }
     }
 
-    console.log('\nRemoved QR images: ' + removed);
-    console.log('Games affected: ' + gamesAffected);
+    if (removed > 0) console.log('Removed QR: ' + removed + ' (' + gamesAffected + ' items)');
 
-    console.log('\nWriting games.json...');
-    fs.writeFileSync(GAMES_FILE, JSON.stringify(games, null, 2), 'utf-8');
-
-    // 更新已检查记录（二维码标记为 false，非二维码标记为 true）
+    fs.writeFileSync(filePath, JSON.stringify(games, null, 2), 'utf-8');
     tasks.forEach(function(task) { checkedUrls[task.url] = qrUrls[task.url] ? false : true; });
+}
+
+async function main() {
+    var forceMode = process.argv.includes('--force');
+    var COLLECTIONS_FILE = path.join(__dirname, 'collections.json');
+
+    var checkedUrls = {};
+    if (!forceMode) {
+        try {
+            checkedUrls = JSON.parse(fs.readFileSync(CHECKED_FILE, 'utf-8'));
+            console.log('已检查过的图片: ' + Object.keys(checkedUrls).length + ' 张');
+        } catch(e) {}
+    }
+
+    await processFile(GAMES_FILE, '主数据', checkedUrls, forceMode);
+    await processFile(COLLECTIONS_FILE, '合集数据', checkedUrls, forceMode);
+
     try {
         fs.writeFileSync(CHECKED_FILE, JSON.stringify(checkedUrls), 'utf-8');
-        console.log('已更新检查记录: ' + Object.keys(checkedUrls).length + ' 张图片');
+        console.log('\n已更新检查记录: ' + Object.keys(checkedUrls).length + ' 张图片');
     } catch(e) {
         console.log('⚠️ 检查记录保存失败:', e.message);
     }
-
     console.log('Done!');
 }
 

@@ -104,8 +104,8 @@ function getFieldSortKey(field) {
     if (field.includes('文件ID')) return 1;
     if (field.includes('搜索')) return 2;
     if (field.includes('排雷')) return 3;
-    if (field.includes('成品级别')) return 4;
-    if (field === '评级') return 5;
+    if (field === '评级') return 4;
+    if (field.includes('成品级别')) return 5;
     if (field.includes('类型')) return 6;
     if (field.includes('剧情')) return 7;
     if (field.includes('画风')) return 8;
@@ -156,11 +156,19 @@ function mapRowToGame(row, headers) {
     const isPrivateField = (key) => exactPrivateFields.includes(key) || containsPrivateKeywords.some(p => key.includes(p));
 
     const titleKw = ['游戏名', '游戏名称', '名称', '标题'];
-    for (const kw of titleKw) { const v = get(kw); if (v) { game.title = v; break; } }
-    // 合集表格没有"游戏名"字段，用"文件ID"作为标题回退
-    if (!game.title) game.title = get('文件ID') || '未命名';
+    let titleField = '';
+    for (const kw of titleKw) {
+        const i = findCol(headers, kw);
+        if (i >= 0 && (row[headers[i]] || '').trim()) { titleField = headers[i]; break; }
+    }
+    if (titleField) {
+        game.title = (row[titleField] || '').trim();
+    } else {
+        game.title = get('文件ID') || '未命名';
+    }
 
     headers.forEach(h => {
+        if (h === titleField) return; // 标题字段不放入自定义字段
         const val = (row[h] || '').trim();
         if (val) {
             if (isPrivateField(h)) {

@@ -89,11 +89,16 @@ function fetchUrl(url, timeoutMs = 10000) {
 }
 
 // ========== 主流程 ==========
-async function main() {
-    const forceMode = process.argv.includes('--force');
-    console.log(`读取 games.json...${forceMode ? ' (强制模式: 重新提取所有封面)' : ''}`);
-    const raw = fs.readFileSync(GAMES_FILE, 'utf-8');
-    const games = JSON.parse(raw);
+async function processFile(filePath, label, forceMode) {
+    console.log(`\n--- ${label} ---`);
+    console.log(`读取 ${path.basename(filePath)}...${forceMode ? ' (强制模式)' : ''}`);
+    let games = [];
+    try {
+        games = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+    } catch(e) {
+        console.log('文件不存在或为空，跳过');
+        return;
+    }
 
     let success = 0;
     let skipped = 0;
@@ -121,7 +126,6 @@ async function main() {
         const batch = needProcess.slice(i, i + batchSize);
         await Promise.all(batch.map(async ({ game, preview }) => {
             try {
-                // 预览字段可能包含多个URL（用换行分隔），分别请求
                 const previewUrls = preview.split('\n').map(s => s.trim()).filter(s => /^https?:\/\//i.test(s));
                 let allImgs = [];
                 for (const url of previewUrls) {
@@ -133,11 +137,8 @@ async function main() {
                         }
                         const imgs = extractImagesFromHtml(html, url);
                         allImgs = allImgs.concat(imgs);
-                    } catch(e) {
-                        // 单个URL失败不影响其他URL
-                    }
+                    } catch(e) {}
                 }
-                // 去重
                 const unique = [...new Set(allImgs)];
                 if (unique.length > 0) {
                     const count = Math.min(unique.length, 10);
@@ -154,22 +155,25 @@ async function main() {
         console.log(`进度: ${Math.min(i + batchSize, needProcess.length)}/${needProcess.length} | 成功:${success} 失败:${failed}`);
     }
 
-    console.log('\n写入 games.json...');
-    fs.writeFileSync(GAMES_FILE, JSON.stringify(games, null, 2), 'utf-8');
+    console.log(`写入 ${path.basename(filePath)}...`);
+    fs.writeFileSync(filePath, JSON.stringify(games, null, 2), 'utf-8');
+
+    console.log(`成功: ${success}, 失败: ${failed}, 跳过: ${skipped}`);
+    if (errors.length > 0) {
+        errors.slice(0, 5).forEach(e => console.log('  -', e));
+    }
+    const withCovers = games.filter(g => g.coverUrls && g.coverUrls.length > 0).length;
+    console.log(`覆盖率: ${withCovers}/${games.length} (${games.length > 0 ? (withCovers/games.length*100).toFixed(1) : 0}%)`);
+}
+
+async function main() {
+    const forceMode = process.argv.includes('--force');
+    const COLLECTIONS_FILE = path.join(__dirname, 'collections.json');
+
+    await processFile(GAMES_FILE, '主数据', forceMode);
+    await processFile(COLLECTIONS_FILE, '合集数据', forceMode);
 
     console.log('\n========== 完成 ==========');
-    console.log(`成功提取: ${success}`);
-    console.log(`失败(无图/超时): ${failed}`);
-    console.log(`跳过(已有): ${skipped}`);
-
-    if (errors.length > 0) {
-        console.log('\n部分错误:');
-        errors.forEach(e => console.log('  -', e));
-    }
-
-    // 统计覆盖率
-    const withCovers = games.filter(g => g.coverUrls && g.coverUrls.length > 0).length;
-    console.log(`\n封面覆盖率: ${withCovers}/${games.length} (${(withCovers/games.length*100).toFixed(1)}%)`);
     console.log('\n提示: 运行 node filter-qrcodes.js 可过滤二维码图片');
 }
 
