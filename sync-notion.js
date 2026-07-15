@@ -186,10 +186,16 @@ async function syncSource(source, outputFile, label) {
         newItems.push(game);
     }
 
-    // 过滤空行
-    const filtered = newItems.filter(g => {
-        const fid = g._rawData && g._rawData['文件ID'];
-        return fid && fid.trim();
+    // 过滤未命名
+    const filtered = newItems.filter(g => g.title !== '未命名');
+
+    // 字段统一和排序（与 update.js 一致）
+    const allFields = new Set();
+    filtered.forEach(g => g._rawFields && g._rawFields.forEach(f => allFields.add(f)));
+    const sortedFields = Array.from(allFields).sort((a, b) => a.localeCompare(b, 'zh-CN'));
+    filtered.forEach(g => {
+        g._rawFields = [...sortedFields];
+        sortedFields.forEach(f => { if (!g._rawData[f]) g._rawData[f] = ''; });
     });
 
     console.log('有效数据: ' + filtered.length + ' 条');

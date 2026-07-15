@@ -1849,7 +1849,7 @@ const App = {
                         <h3 class="modal-title">⚠️ 内容提示</h3>
                     </div>
                     <div class="modal-body" style="text-align:center;">
-                        <p style="color:#f87171;font-size:13px;margin-bottom:12px;">封面预览图可能包含敏感内容，确认要打开吗？</p>
+                        <p style="color:#f87171;font-size:13px;margin-bottom:12px;">封面预览图可能包含NSFW内容，确认要打开吗？</p>
                         <p style="font-size:12px;color:#64748b;margin-bottom:16px;">可前往 <span style="color:#6366f1;text-decoration:underline;cursor:pointer;" onclick="App.copyLink()">vlink.cc/bayj</span> 获取密码</p>
                         <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:16px;">
                             <input type="text" inputmode="text" autocomplete="off" id="ageInput" placeholder="请输入密码"
