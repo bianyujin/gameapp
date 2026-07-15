@@ -156,12 +156,7 @@ const CloudSync = {
     normalizeAllFields(games) {
         const all = new Set();
         games.forEach(g => { g._rawFields && g._rawFields.forEach(f => all.add(f)); });
-        const fields = Array.from(all).sort((a, b) => {
-            const ka = this.getFieldSortKey(a);
-            const kb = this.getFieldSortKey(b);
-            if (ka !== kb) return ka - kb;
-            return a.localeCompare(b, 'zh-CN');
-        });
+        const fields = Array.from(all).sort((a, b) => a.localeCompare(b, 'zh-CN'));
         try { Storage.setItem('gamehub_field_order', JSON.stringify(fields)); } catch(e) {}
         games.forEach(g => {
             g._rawFields = [...fields];
@@ -171,39 +166,6 @@ const CloudSync = {
         App.globalFields = fields;
         console.log('字段顺序:', fields);
         return fields;
-    },
-
-    getFieldSortKey(field) {
-        if (field.includes('文件ID')) return 1;
-        if (field.includes('搜索')) return 2;
-        if (field.includes('排雷')) return 3;
-        if (field === '评级') return 4;
-        if (field.includes('成品级别')) return 5;
-        if (field.includes('类型')) return 6;
-        if (field.includes('剧情')) return 7;
-        if (field.includes('画风')) return 8;
-        if (field.includes('游戏性')) return 9;
-        if (field.toLowerCase().includes('内容cg')) return 10;
-        if (field.toUpperCase().includes('CV质量')) return 11;
-        if (field.includes('修正分')) return 12;
-        if (field.includes('备注')) return 13;
-        if (field.includes('攻略')) return 14;
-        if (field.includes('更新日志')) return 15;
-        if (field.includes('预览')) return 16;
-        if (field.includes('封面')) return 17;
-        if (field.includes('百度') || field.includes('度盘')) return 18;
-        if (field.includes('夸克')) return 19;
-        if (field.includes('迅雷')) return 20;
-        if (field.includes('UC')) return 21;
-        if (field === 'FB') return 22;
-        if (field.includes('视频')) return 23;
-        if (field.includes('版本及更新时间')) return 24;
-        if (field.includes('游戏名')) return 25;
-        if (field.includes('最后修改时间')) return 26;
-        if (field.includes('创建时间')) return 27;
-        if (field.includes('DL号')) return 28;
-        if (field.includes('引擎')) return 29;
-        return 100;
     },
 
     saveFieldOrder(fields) {
