@@ -1,0 +1,22 @@
+name: Notion 自动同步
+
+on:
+  schedule:
+    # 每天北京时间 6:00 自动运行（UTC 22:00）
+    - cron: '0 22 * * *'
+  workflow_dispatch: # 支持手动触发
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 运行 Notion 同步
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+        run: node sync-notion.js
