@@ -99,6 +99,40 @@ function findCol(headers, keyword) {
     return headers.findIndex(h => h.includes(keyword));
 }
 
+// 字段排序优先级（数字越小越靠前，主表和合集共用统一顺序）
+function getFieldSortKey(field) {
+    if (field.includes('文件ID')) return 1;
+    if (field.includes('搜索')) return 2;
+    if (field.includes('排雷')) return 3;
+    if (field.includes('成品级别')) return 4;
+    if (field === '评级') return 5;
+    if (field.includes('类型')) return 6;
+    if (field.includes('剧情')) return 7;
+    if (field.includes('画风')) return 8;
+    if (field.includes('游戏性')) return 9;
+    if (field.toLowerCase().includes('内容cg')) return 10;
+    if (field.toUpperCase().includes('CV质量')) return 11;
+    if (field.includes('修正分')) return 12;
+    if (field.includes('备注')) return 13;
+    if (field.includes('攻略')) return 14;
+    if (field.includes('更新日志')) return 15;
+    if (field.includes('预览')) return 16;
+    if (field.includes('封面')) return 17;
+    if (field.includes('百度') || field.includes('度盘')) return 18;
+    if (field.includes('夸克')) return 19;
+    if (field.includes('迅雷')) return 20;
+    if (field.includes('UC')) return 21;
+    if (field === 'FB') return 22;
+    if (field.includes('视频')) return 23;
+    if (field.includes('版本及更新时间')) return 24;
+    if (field.includes('游戏名')) return 25;
+    if (field.includes('最后修改时间')) return 26;
+    if (field.includes('创建时间')) return 27;
+    if (field.includes('DL号')) return 28;
+    if (field.includes('引擎')) return 29;
+    return 100;
+}
+
 function mapRowToGame(row, headers) {
     const get = (kw) => { const i = findCol(headers, kw); return i >= 0 ? (row[headers[i]] || '').trim() : ''; };
 
@@ -108,7 +142,7 @@ function mapRowToGame(row, headers) {
         category: get('类型') || get('分类') || '其他',
         rating: parseFloat(get('评分')) || 0,
         downloads: get('下载量') || get('下载') || '-',
-        description: get('介绍') || get('描述') || '',
+        description: get('介绍') || get('描述') || get('更新日志') || '',
         updateDate: new Date(),
         isFavorite: false,
         _rawFields: [],
@@ -117,7 +151,7 @@ function mapRowToGame(row, headers) {
         title: ''
     };
 
-    const exactPrivateFields = ['搜索', '更新日志', 'FB', '视频'];
+    const exactPrivateFields = ['搜索', 'FB', '视频'];
     const containsPrivateKeywords = ['版本及更新时间'];
     const isPrivateField = (key) => exactPrivateFields.includes(key) || containsPrivateKeywords.some(p => key.includes(p));
 
@@ -211,17 +245,13 @@ async function syncSource(source, outputFile, label) {
     // 过滤未命名
     const filtered = newItems.filter(g => g.title !== '未命名');
 
-    // 字段统一和排序（与 update.js 一致）
+    // 字段统一和排序（主表和合集共用统一顺序）
     const allFields = new Set();
     filtered.forEach(g => g._rawFields && g._rawFields.forEach(f => allFields.add(f)));
     const sortedFields = Array.from(allFields).sort((a, b) => {
-        // 特殊处理：评级（成品级别）... 排在 评级 前面
-        const aIsRatingDetail = a.includes('评级') && a.includes('成品级别');
-        const bIsRatingDetail = b.includes('评级') && b.includes('成品级别');
-        const aIsRating = a === '评级';
-        const bIsRating = b === '评级';
-        if (aIsRatingDetail && bIsRating) return -1;
-        if (aIsRating && bIsRatingDetail) return 1;
+        const ka = getFieldSortKey(a);
+        const kb = getFieldSortKey(b);
+        if (ka !== kb) return ka - kb;
         return a.localeCompare(b, 'zh-CN');
     });
     filtered.forEach(g => {

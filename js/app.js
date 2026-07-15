@@ -978,6 +978,8 @@ const App = {
         const rawFieldsHtml = rawFields.map((k, i) => {
             const isHidden = !this.isAdmin && isPrivateField(k);
             if (isHidden) return '';
+            const fieldVal = String(game._rawData[k] || '');
+            const isLink = /^https?:\/\/\S+/i.test(fieldVal.trim());
             return `
                 <div class="form-group raw-field" data-field="${k}" data-index="${i}">
                     <label class="form-label" style="display: flex; justify-content: space-between; align-items: center;">
@@ -987,10 +989,10 @@ const App = {
                                 <button type="button" onclick="App.moveRawField(${i}, -1)" style="background: #334155; border: none; color: #94a3b8; cursor: pointer; padding: 4px 8px; border-radius: 4px; font-size: 12px;">↑</button>
                                 <button type="button" onclick="App.moveRawField(${i}, 1)" style="background: #334155; border: none; color: #94a3b8; cursor: pointer; padding: 4px 8px; border-radius: 4px; font-size: 12px;">↓</button>
                             ` : ''}
-                            <button type="button" onclick="App.copyFieldText(this)" style="background: #334155; border: none; color: #94a3b8; cursor: pointer; padding: 4px 8px; border-radius: 4px; font-size: 12px;">复制</button>
+                            ${isLink ? `<button type="button" onclick="App.copyFieldText(this)" style="background: #334155; border: none; color: #94a3b8; cursor: pointer; padding: 4px 8px; border-radius: 4px; font-size: 12px;">复制</button>` : ''}
                         </span>
                     </label>
-                    <div class="form-textarea raw-field-value" data-field="${k}" style="font-size: 13px; background: #0f172a; min-height: 40px; white-space: pre-wrap; word-break: break-all;">${String(game._rawData[k] || '-')}</div>
+                    <div class="form-textarea raw-field-value" data-field="${k}" style="font-size: 13px; background: #0f172a; min-height: 40px; white-space: pre-wrap; word-break: break-all;">${fieldVal || '-'}</div>
                 </div>
             `;
         }).join('');
@@ -1032,8 +1034,8 @@ const App = {
                             </div>
                         </div>
                         <div class="form-group">
-                            <label class="form-label">描述</label>
-                            <div class="form-textarea" style="background: #0f172a; min-height: 40px;">${game.description || '-'}</div>
+                            <label class="form-label">描述 <span style="font-size:11px;color:#64748b;">(点击展开/收起)</span></label>
+                            <div class="form-textarea" style="background: #0f172a; min-height: 40px; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; cursor: pointer;" onclick="this.style.webkitLineClamp = this.style.webkitLineClamp === '1' ? 'unset' : '1'">${game.description || '-'}</div>
                         </div>
                         
                         ${this.isAdmin && allPrivateFields && Object.keys(allPrivateFields).length > 0 ? `
@@ -1120,19 +1122,23 @@ const App = {
         if (container) {
             const game = this.games[0];
             if (game) {
-                const newHtml = fields.map((k, i) => `
+                const newHtml = fields.map((k, i) => {
+                    const v = String(game.privateData?.[k] || game._rawData[k] || '');
+                    const isLink = /^https?:\/\/\S+/i.test(v.trim());
+                    return `
                     <div class="form-group raw-field" data-field="${k}" data-index="${i}">
                         <label class="form-label" style="display: flex; justify-content: space-between; align-items: center;">
                             <span>${k}</span>
                             <span style="display: flex; gap: 4px;">
                                 <button type="button" onclick="App.moveRawField(${i}, -1)" style="background: #334155; border: none; color: #94a3b8; cursor: pointer; padding: 4px 8px; border-radius: 4px; font-size: 12px;">↑</button>
                                 <button type="button" onclick="App.moveRawField(${i}, 1)" style="background: #334155; border: none; color: #94a3b8; cursor: pointer; padding: 4px 8px; border-radius: 4px; font-size: 12px;">↓</button>
-                                <button type="button" onclick="App.copyFieldText(this)" style="background: #334155; border: none; color: #94a3b8; cursor: pointer; padding: 4px 8px; border-radius: 4px; font-size: 12px;">复制</button>
+                                ${isLink ? `<button type="button" onclick="App.copyFieldText(this)" style="background: #334155; border: none; color: #94a3b8; cursor: pointer; padding: 4px 8px; border-radius: 4px; font-size: 12px;">复制</button>` : ''}
                             </span>
                         </label>
-                    <div class="form-textarea raw-field-value" data-field="${k}" style="font-size: 13px; background: #0f172a; min-height: 40px; white-space: pre-wrap; word-break: break-all;">${String(game.privateData?.[k] || game._rawData[k] || '-')}</div>
+                    <div class="form-textarea raw-field-value" data-field="${k}" style="font-size: 13px; background: #0f172a; min-height: 40px; white-space: pre-wrap; word-break: break-all;">${v || '-'}</div>
                     </div>
-                `).join('');
+                    `;
+                }).join('');
                 container.innerHTML = newHtml;
             }
         }
