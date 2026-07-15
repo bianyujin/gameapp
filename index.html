@@ -92,6 +92,19 @@
                 </div>
             </div>
 
+            <div id="page-collections" class="page">
+                <div class="table-toolbar">
+                    <div class="table-search-box">
+                        <span class="search-icon">🔍</span>
+                        <input type="text" id="collectionsSearch" placeholder="搜索合集...">
+                    </div>
+                </div>
+                <div class="games-grid" id="collectionsBody"></div>
+                <div class="table-footer">
+                    <div class="footer-info" id="collectionsInfo"></div>
+                </div>
+            </div>
+
             <div id="page-profile" class="page">
                 <div class="profile-header">
                     <div class="profile-avatar" style="cursor:pointer;overflow:hidden;background:none;" onclick="App.changeAvatar()">
@@ -202,6 +215,10 @@
             <button class="nav-item" data-page="table">
                 <span class="nav-icon">📁</span>
                 <span class="nav-label">数据</span>
+            </button>
+            <button class="nav-item" data-page="collections">
+                <span class="nav-icon">📚</span>
+                <span class="nav-label">合集</span>
             </button>
             <button class="nav-item" data-page="profile">
                 <span class="nav-icon">👤</span>

@@ -14,13 +14,13 @@ const { execSync } = require('child_process');
 const TOKEN = process.env.NOTION_TOKEN;
 const API_VERSION = '2025-09-03';
 const GAMES_FILE = path.join(__dirname, 'games.json');
+const COLLECTIONS_FILE = path.join(__dirname, 'collections.json');
 const CONFIG_FILE = path.join(__dirname, 'config.json');
 
-// 只同步 GAMEACG管理（galgame整理总表）
-// STU合集等其它表格不同步到主数据
-const DATA_SOURCES = [
-    { id: '308d9616-6621-8152-b20b-000b3217d5fc', name: 'GAMEACG管理' }
-];
+// 主数据源：GAMEACG管理（galgame整理总表）→ games.json
+const MAIN_SOURCE = { id: '308d9616-6621-8152-b20b-000b3217d5fc', name: 'GAMEACG管理' };
+// 合集数据源：STU合集 → collections.json
+const COLLECTION_SOURCE = { id: '318d9616-6621-803a-8feb-000b67b83a33', name: 'STU合集' };
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
@@ -150,69 +150,68 @@ async function queryDataSource(dsId, dsName) {
     return allPages;
 }
 
+// 同步单个数据源到指定文件
+async function syncSource(source, outputFile, label) {
+    console.log('\n--- ' + label + ' ---');
+
+    // 读取现有数据（保留封面图）
+    let oldData = [];
+    try {
+        oldData = JSON.parse(fs.readFileSync(outputFile, 'utf-8'));
+        console.log('现有数据: ' + oldData.length + ' 条');
+    } catch(e) {}
+
+    const coverMap = {};
+    for (const item of oldData) {
+        const fid = (item._rawData && item._rawData['文件ID']) || item.title;
+        if (fid && item.coverUrls) {
+            coverMap[fid] = item.coverUrls;
+        }
+    }
+    console.log('已缓存封面图: ' + Object.keys(coverMap).length + ' 个');
+
+    // 获取数据
+    const pages = await queryDataSource(source.id, source.name);
+    console.log('获取: ' + pages.length + ' 条');
+
+    // 转换
+    const newItems = [];
+    for (const page of pages) {
+        const row = notionPageToRow(page);
+        const headers = Object.keys(row);
+        const game = mapRowToGame(row, headers);
+        const fid = row['文件ID'] || game.title;
+        if (fid && coverMap[fid]) {
+            game.coverUrls = coverMap[fid];
+        }
+        newItems.push(game);
+    }
+
+    // 过滤空行
+    const filtered = newItems.filter(g => {
+        const fid = g._rawData && g._rawData['文件ID'];
+        return fid && fid.trim();
+    });
+
+    console.log('有效数据: ' + filtered.length + ' 条');
+    fs.writeFileSync(outputFile, JSON.stringify(filtered, null, 2), 'utf-8');
+    console.log('已写入 ' + path.basename(outputFile));
+    return filtered.length;
+}
+
 async function main() {
     if (!TOKEN) {
         console.error('错误：缺少 NOTION_TOKEN 环境变量');
         process.exit(1);
     }
 
-    console.log('=== Notion 自动同步 ===\n');
+    console.log('=== Notion 自动同步 ===');
 
-    // 读取现有 games.json（保留封面图）
-    let oldGames = [];
-    try {
-        oldGames = JSON.parse(fs.readFileSync(GAMES_FILE, 'utf-8'));
-        console.log('现有数据: ' + oldGames.length + ' 条');
-    } catch(e) {
-        console.log('无现有数据，全新创建');
-    }
+    // 同步主数据
+    const mainCount = await syncSource(MAIN_SOURCE, GAMES_FILE, '主数据(GAMEACG管理)');
 
-    // 建立 文件ID → coverUrls 映射（保留封面图）
-    const coverMap = {};
-    for (const game of oldGames) {
-        const fid = (game._rawData && game._rawData['文件ID']) || game.title;
-        if (fid && game.coverUrls) {
-            coverMap[fid] = game.coverUrls;
-        }
-    }
-    console.log('已缓存封面图: ' + Object.keys(coverMap).length + ' 个游戏\n');
-
-    // 串行获取4个数据源（避免速率限制）
-    console.log('正在从 Notion 获取数据...');
-    let allPages = [];
-    for (const ds of DATA_SOURCES) {
-        const pages = await queryDataSource(ds.id, ds.name);
-        allPages = allPages.concat(pages);
-    }
-    console.log('\n总共获取: ' + allPages.length + ' 条\n');
-
-    // 转换为 game 对象
-    const newGames = [];
-    for (const page of allPages) {
-        const row = notionPageToRow(page);
-        const headers = Object.keys(row);
-        const game = mapRowToGame(row, headers);
-
-        // 用文件ID匹配保留封面图
-        const fid = row['文件ID'] || game.title;
-        if (fid && coverMap[fid]) {
-            game.coverUrls = coverMap[fid];
-        }
-
-        newGames.push(game);
-    }
-
-    // 过滤掉没有文件ID的空行
-    const filtered = newGames.filter(g => {
-        const fid = g._rawData && g._rawData['文件ID'];
-        return fid && fid.trim();
-    });
-
-    console.log('有效数据: ' + filtered.length + ' 条');
-
-    // 写入 games.json
-    fs.writeFileSync(GAMES_FILE, JSON.stringify(filtered, null, 2), 'utf-8');
-    console.log('已写入 games.json');
+    // 同步合集数据
+    const collCount = await syncSource(COLLECTION_SOURCE, COLLECTIONS_FILE, '合集数据(STU合集)');
 
     // 更新 config.json 版本号
     try {
@@ -223,19 +222,18 @@ async function main() {
         const d = String(today.getDate()).padStart(2, '0');
         config.games_data_version = y + m + d;
         fs.writeFileSync(CONFIG_FILE, JSON.stringify(config), 'utf-8');
-        console.log('已更新数据版本号: ' + config.games_data_version);
+        console.log('\n已更新数据版本号: ' + config.games_data_version);
     } catch(e) {}
 
     // Git 提交推送
     console.log('\n正在提交推送...');
     try {
-        execSync('git add games.json config.json', { cwd: __dirname, stdio: 'pipe' });
-        execSync('git commit -m "Notion自动同步: ' + filtered.length + '条数据"', { cwd: __dirname, stdio: 'pipe' });
+        execSync('git add games.json collections.json config.json', { cwd: __dirname, stdio: 'pipe' });
+        execSync('git commit -m "Notion自动同步: 主数据' + mainCount + '条 合集' + collCount + '条"', { cwd: __dirname, stdio: 'pipe' });
         execSync('git push origin main', { cwd: __dirname, stdio: 'pipe' });
         console.log('✅ 推送成功！');
     } catch(e) {
         console.log('⚠️ Git操作失败，数据已更新到本地');
-        console.log('   请手动执行: git push origin main');
     }
 
     console.log('\n=== 同步完成 ===');

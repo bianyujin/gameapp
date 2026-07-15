@@ -100,6 +100,8 @@ window.addEventListener('unhandledrejection', (e) => {
 
 const App = {
     games: [],
+    collections: [],
+    collectionsSearch: '',
     isAdmin: false,
     _userSorted: false,
     categories: [
@@ -141,6 +143,7 @@ const App = {
             if (savedOrder) this.globalFields = JSON.parse(savedOrder);
         } catch(e) {}
         this.loadData();
+        this.loadCollections();
         this.bindEvents();
         this.render();
         this.startCarousel();
@@ -537,6 +540,14 @@ const App = {
             });
         }
 
+        const collectionsSearch = document.getElementById('collectionsSearch');
+        if (collectionsSearch) {
+            collectionsSearch.addEventListener('input', (e) => {
+                this.collectionsSearch = e.target.value;
+                this.renderCollections();
+            });
+        }
+
         const filterBtn = document.getElementById('filterBtn');
         if (filterBtn) {
             filterBtn.addEventListener('click', () => {
@@ -628,12 +639,16 @@ const App = {
         const titles = {
             home: '首页',
             table: '数据管理',
+            collections: '合集',
             profile: '个人中心'
         };
         document.getElementById('headerTitle').textContent = titles[page];
 
         if (page === 'table') {
             this.renderTable();
+        }
+        if (page === 'collections') {
+            this.renderCollections();
         }
     },
 
@@ -1564,6 +1579,78 @@ const App = {
         }
         
         this.updateProfileCounts();
+    },
+
+    // ========== 合集功能 ==========
+    async loadCollections() {
+        try {
+            const baseUrl = window.location.hostname === 'localhost' ? '' : 'https://gameapp-2e8.pages.dev';
+            const url = baseUrl + '/collections.json';
+            const res = await fetch(url);
+            if (!res.ok) { console.log('合集数据加载失败:', res.status); return; }
+            this.collections = await res.json();
+            console.log('合集数据已加载:', this.collections.length + ' 条');
+        } catch(e) {
+            console.log('合集数据加载失败:', e.message);
+        }
+    },
+
+    renderCollections() {
+        const body = document.getElementById('collectionsBody');
+        if (!body) return;
+
+        let list = this.collections;
+        const q = this.collectionsSearch.trim().toLowerCase();
+        if (q) {
+            list = list.filter(g => {
+                const title = (g.title || '').toLowerCase();
+                const cat = (g.category || '').toLowerCase();
+                const raw = JSON.stringify(g._rawData || {}).toLowerCase();
+                return title.includes(q) || cat.includes(q) || raw.includes(q);
+            });
+        }
+
+        if (list.length === 0) {
+            body.innerHTML = '<div style="text-align:center;color:#64748b;padding:40px;">暂无合集数据</div>';
+            const info = document.getElementById('collectionsInfo');
+            if (info) info.textContent = '';
+            return;
+        }
+
+        body.innerHTML = list.map((game, index) => {
+            const coverUrl = this.getGameCoverUrl(game);
+            const type = this.extractGameType(game.title || '') || this.extractGameType(game.category || '');
+            const gradient = this.getTypeGradient(type);
+            const typeIcon = this.getGameTypeIcon(type);
+            const coverClass = coverUrl ? '' : 'cover-noimage';
+            const realIndex = this.collections.indexOf(game);
+            return `
+            <div class="game-card" onclick="App.showCollectionItem(${realIndex})">
+                <div class="game-cover ${coverClass}" style="background: ${gradient};">
+                    ${coverUrl
+                        ? `<img class="cover-img" src="${coverUrl}" alt="" loading="lazy" onerror="this.style.display='none';this.parentElement.classList.add('cover-noimage');" /><span style="display:none;">${typeIcon}</span>`
+                        : `<span>${typeIcon}</span>`
+                    }
+                </div>
+                <div class="game-info">
+                    <div class="game-title">${this.escapeHtml(game.title || '未命名')}</div>
+                    <div class="game-meta">
+                        <span class="game-category">${this.escapeHtml(game.category || '其他')}</span>
+                        <span class="game-rating">${this.getGradeDisplay(game) || '？'}</span>
+                    </div>
+                </div>
+            </div>`;
+        }).join('');
+
+        const info = document.getElementById('collectionsInfo');
+        if (info) info.textContent = `共 ${list.length} 条`;
+    },
+
+    showCollectionItem(index) {
+        const game = this.collections[index];
+        if (!game) return;
+        this.addToHistory(game);
+        this.openEditModal(game, -1);
     },
 
     // ========== 封面图懒加载 ==========
