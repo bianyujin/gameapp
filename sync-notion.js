@@ -16,12 +16,10 @@ const API_VERSION = '2025-09-03';
 const GAMES_FILE = path.join(__dirname, 'games.json');
 const CONFIG_FILE = path.join(__dirname, 'config.json');
 
-// 4个数据源
+// 只同步 GAMEACG管理（galgame整理总表）
+// STU合集等其它表格不同步到主数据
 const DATA_SOURCES = [
-    { id: '308d9616-6621-8152-b20b-000b3217d5fc', name: 'GAMEACG管理' },
-    { id: '318d9616-6621-803a-8feb-000b67b83a33', name: '新数据源(精简库)' },
-    { id: '30ad9616-6621-803e-a093-000b0743982f', name: '新数据源(说明文档)' },
-    { id: '30ad9616-6621-80f9-942b-000b7b011bf1', name: '新数据源(空表)' }
+    { id: '308d9616-6621-8152-b20b-000b3217d5fc', name: 'GAMEACG管理' }
 ];
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
