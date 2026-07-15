@@ -104,8 +104,8 @@ function getFieldSortKey(field) {
     if (field.includes('文件ID')) return 1;
     if (field.includes('搜索')) return 2;
     if (field.includes('排雷')) return 3;
-    if (field === '评级') return 4;
-    if (field.includes('成品级别')) return 5;
+    if (field.includes('成品级别')) return 4;
+    if (field === '评级') return 5;
     if (field.includes('类型')) return 6;
     if (field.includes('剧情')) return 7;
     if (field.includes('画风')) return 8;
@@ -139,10 +139,10 @@ function mapRowToGame(row, headers) {
     const game = {
         id: Date.now() + Math.random(),
         icon: get('图标') || '🎮',
-        category: get('类型') || get('分类') || '其他',
+        category: '其他',
         rating: parseFloat(get('评分')) || 0,
         downloads: get('下载量') || get('下载') || '-',
-        description: get('介绍') || get('描述') || get('更新日志') || '',
+        description: '',
         updateDate: new Date(),
         isFavorite: false,
         _rawFields: [],
@@ -150,6 +150,30 @@ function mapRowToGame(row, headers) {
         privateData: {},
         title: ''
     };
+
+    // 描述来源：介绍 > 描述 > 更新日志（已用作描述的字段不再放入自定义字段）
+    const descKw = ['介绍', '描述', '更新日志'];
+    let descriptionSource = '';
+    for (const kw of descKw) {
+        const i = findCol(headers, kw);
+        if (i >= 0 && (row[headers[i]] || '').trim()) {
+            game.description = (row[headers[i]] || '').trim();
+            descriptionSource = headers[i];
+            break;
+        }
+    }
+
+    // 分类来源：类型 > 分类（已用作分类的字段不再放入自定义字段）
+    const categoryKw = ['类型', '分类'];
+    let categorySource = '';
+    for (const kw of categoryKw) {
+        const i = findCol(headers, kw);
+        if (i >= 0 && (row[headers[i]] || '').trim()) {
+            game.category = (row[headers[i]] || '').trim();
+            categorySource = headers[i];
+            break;
+        }
+    }
 
     const exactPrivateFields = ['搜索', 'FB', '视频'];
     const containsPrivateKeywords = ['版本及更新时间'];
@@ -168,7 +192,7 @@ function mapRowToGame(row, headers) {
     }
 
     headers.forEach(h => {
-        if (h === titleField) return; // 标题字段不放入自定义字段
+        if (h === titleField || h === descriptionSource || h === categorySource) return; // 已映射字段不放入自定义字段
         const val = (row[h] || '').trim();
         if (val) {
             if (isPrivateField(h)) {
