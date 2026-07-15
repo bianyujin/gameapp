@@ -159,6 +159,7 @@ function mapRowToGame(row, headers) {
 
     headers.forEach(h => {
         if (h === titleField || h === descriptionSource || h === categorySource) return; // 已映射字段不放入自定义字段
+        if (h.includes('封面')) return; // 封面字段是图片，不显示
         const val = (row[h] || '').trim();
         if (val) {
             if (isPrivateField(h)) {
@@ -243,10 +244,34 @@ async function syncSource(source, outputFile, label) {
     // 过滤未命名
     const filtered = newItems.filter(g => g.title !== '未命名');
 
-    // 字段统一和排序：按拼音排序（与 update.js 一致）
+    // 字段统一和排序：按固定顺序（文件ID→链接→备注→评价→预览→时间→DL号）
+    const FIELD_ORDER = [
+        '文件ID',
+        '百度', '迅雷', 'UC', '夸克', '预览',
+        '备注',
+        '排雷',
+        '评级',
+        '成品级别',
+        '剧情',
+        '画风',
+        '游戏性',
+        '内容cg',
+        'CV质量',
+        '修正分',
+        '攻略',
+        '最后修改时间',
+        '创建时间',
+        'DL号'
+    ];
     const allFields = new Set();
     filtered.forEach(g => g._rawFields && g._rawFields.forEach(f => allFields.add(f)));
-    const sortedFields = Array.from(allFields).sort((a, b) => a.localeCompare(b, 'zh-CN'));
+    const sortedFields = Array.from(allFields).sort((a, b) => {
+        const ka = FIELD_ORDER.findIndex(k => a.includes(k));
+        const kb = FIELD_ORDER.findIndex(k => b.includes(k));
+        const ia = ka >= 0 ? ka : 999;
+        const ib = kb >= 0 ? kb : 999;
+        return ia - ib;
+    });
     filtered.forEach(g => {
         g._rawFields = [...sortedFields];
         sortedFields.forEach(f => { if (!g._rawData[f]) g._rawData[f] = ''; });

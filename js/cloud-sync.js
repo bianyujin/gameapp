@@ -154,9 +154,33 @@ const CloudSync = {
     },
 
     normalizeAllFields(games) {
+        const FIELD_ORDER = [
+            '文件ID',
+            '百度', '迅雷', 'UC', '夸克', '预览',
+            '备注',
+            '排雷',
+            '评级',
+            '成品级别',
+            '剧情',
+            '画风',
+            '游戏性',
+            '内容cg',
+            'CV质量',
+            '修正分',
+            '攻略',
+            '最后修改时间',
+            '创建时间',
+            'DL号'
+        ];
         const all = new Set();
         games.forEach(g => { g._rawFields && g._rawFields.forEach(f => all.add(f)); });
-        const fields = Array.from(all).sort((a, b) => a.localeCompare(b, 'zh-CN'));
+        const fields = Array.from(all).sort((a, b) => {
+            const ka = FIELD_ORDER.findIndex(k => a.includes(k));
+            const kb = FIELD_ORDER.findIndex(k => b.includes(k));
+            const ia = ka >= 0 ? ka : 999;
+            const ib = kb >= 0 ? kb : 999;
+            return ia - ib;
+        });
         try { Storage.setItem('gamehub_field_order', JSON.stringify(fields)); } catch(e) {}
         games.forEach(g => {
             g._rawFields = [...fields];
