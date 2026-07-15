@@ -3,4 +3,3 @@ games-full.json
 *.log
 .DS_Store
 _backup/
-checked-urls.json

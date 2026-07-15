@@ -9,7 +9,6 @@
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
 
 const TOKEN = process.env.NOTION_TOKEN;
 const API_VERSION = '2025-09-03';
@@ -225,18 +224,10 @@ async function main() {
         console.log('\n已更新数据版本号: ' + config.games_data_version);
     } catch(e) {}
 
-    // Git 提交推送
-    console.log('\n正在提交推送...');
-    try {
-        execSync('git add games.json collections.json config.json', { cwd: __dirname, stdio: 'pipe' });
-        execSync('git commit -m "Notion自动同步: 主数据' + mainCount + '条 合集' + collCount + '条"', { cwd: __dirname, stdio: 'pipe' });
-        execSync('git push origin main', { cwd: __dirname, stdio: 'pipe' });
-        console.log('✅ 推送成功！');
-    } catch(e) {
-        console.log('⚠️ Git操作失败，数据已更新到本地');
-    }
-
     console.log('\n=== 同步完成 ===');
+    console.log('主数据: ' + mainCount + ' 条');
+    console.log('合集数据: ' + collCount + ' 条');
+    console.log('\n（Git提交推送由GitHub Actions统一处理）');
 }
 
 main().catch(e => { console.error('FATAL:', e); process.exit(1); });
