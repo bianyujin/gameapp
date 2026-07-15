@@ -954,7 +954,7 @@ const App = {
         this.addToHistory(game);
         const rawFields = game._rawFields || Object.keys(game._rawData || {});
         
-        const exactPrivateFields = ['搜索', '更新日志', 'FB', '视频'];
+        const exactPrivateFields = ['搜索', 'FB', '视频'];
         const containsPrivateKeywords = ['版本及更新时间'];
         
         const isPrivateField = (key) => {
