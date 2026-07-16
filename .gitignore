@@ -3,3 +3,4 @@ games-full.json
 *.log
 .DS_Store
 _backup/
+csv-input/*.csv
