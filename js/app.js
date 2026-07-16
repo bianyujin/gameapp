@@ -1301,14 +1301,14 @@ const App = {
                         <div style="display: flex; flex-direction: column; gap: 8px;">
                             <button class="btn btn-secondary" onclick="App.sortGames('id', 'asc')" style="text-align: left;">🆔 ID 正序</button>
                             <button class="btn btn-secondary" onclick="App.sortGames('id', 'desc')" style="text-align: left;">🆔 ID 倒序</button>
-                            <button class="btn btn-secondary" onclick="App.sortGames('title', 'asc')" style="text-align: left;">📝 名称 A-Z</button>
-                            <button class="btn btn-secondary" onclick="App.sortGames('title', 'desc')" style="text-align: left;">📝 名称 Z-A</button>
-                            <button class="btn btn-secondary" onclick="App.sortGames('rating', 'desc')" style="text-align: left;">⭐ 评分 高-低</button>
-                            <button class="btn btn-secondary" onclick="App.sortGames('rating', 'asc')" style="text-align: left;">⭐ 评分 低-高</button>
                             <button class="btn btn-secondary" onclick="App.sortGames('updateDate', 'desc')" style="text-align: left;">🕐 修改时间 新-旧</button>
                             <button class="btn btn-secondary" onclick="App.sortGames('updateDate', 'asc')" style="text-align: left;">🕐 修改时间 旧-新</button>
                             <button class="btn btn-secondary" onclick="App.sortGames('createDate', 'desc')" style="text-align: left;">📅 创建时间 新-旧</button>
                             <button class="btn btn-secondary" onclick="App.sortGames('createDate', 'asc')" style="text-align: left;">📅 创建时间 旧-新</button>
+                            <button class="btn btn-secondary" onclick="App.sortGames('title', 'asc')" style="text-align: left;">📝 名称 A-Z</button>
+                            <button class="btn btn-secondary" onclick="App.sortGames('title', 'desc')" style="text-align: left;">📝 名称 Z-A</button>
+                            <button class="btn btn-secondary" onclick="App.sortGames('rating', 'desc')" style="text-align: left;">🏅 评级 高-低</button>
+                            <button class="btn btn-secondary" onclick="App.sortGames('rating', 'asc')" style="text-align: left;">🏅 评级 低-高</button>
                             <button class="btn btn-secondary" onclick="App.sortGames('size', 'desc')" style="text-align: left;">📦 大小 大-小</button>
                             <button class="btn btn-secondary" onclick="App.sortGames('size', 'asc')" style="text-align: left;">📦 大小 小-大</button>
                         </div>
@@ -1338,7 +1338,7 @@ const App = {
     sortGames(column, direction) {
         this.games.sort((a, b) => {
             let valA, valB;
-            
+
             if (column === 'id') {
                 valA = a._rawData?.['文件ID'] || a.id || '';
                 valB = b._rawData?.['文件ID'] || b.id || '';
@@ -1350,21 +1350,23 @@ const App = {
                 valA = String(valA).toLowerCase();
                 valB = String(valB).toLowerCase();
             } else if (column === 'updateDate') {
-                valA = a._rawData?.['最后修改时间'] || a.updateDate || '';
-                valB = b._rawData?.['最后修改时间'] || b.updateDate || '';
-                valA = this.parseChineseDate(valA);
-                valB = this.parseChineseDate(valB);
+                // 空字段算最旧（返回0），不回退到updateDate（当前时间）
+                const sa = a._rawData?.['最后修改时间'] || '';
+                const sb = b._rawData?.['最后修改时间'] || '';
+                valA = sa ? this.parseChineseDate(sa).getTime() : 0;
+                valB = sb ? this.parseChineseDate(sb).getTime() : 0;
             } else if (column === 'createDate') {
-                valA = a._rawData?.['创建时间'] || '';
-                valB = b._rawData?.['创建时间'] || '';
-                valA = this.parseChineseDate(valA);
-                valB = this.parseChineseDate(valB);
+                const sa = a._rawData?.['创建时间'] || '';
+                const sb = b._rawData?.['创建时间'] || '';
+                valA = sa ? this.parseChineseDate(sa).getTime() : 0;
+                valB = sb ? this.parseChineseDate(sb).getTime() : 0;
             } else if (column === 'title') {
                 valA = (a.title || '').toLowerCase();
                 valB = (b.title || '').toLowerCase();
             } else if (column === 'rating') {
-                valA = parseFloat(a.rating) || 0;
-                valB = parseFloat(b.rating) || 0;
+                // 评级排序：X>SSS>SS>S>A>B>C>无，同级别按分数
+                valA = this.getGradeSortValue(a);
+                valB = this.getGradeSortValue(b);
             } else if (column === 'size') {
                 valA = this.parseFileSize(a.title || '');
                 valB = this.parseFileSize(b.title || '');
@@ -1372,16 +1374,30 @@ const App = {
                 valA = a[column] || 0;
                 valB = b[column] || 0;
             }
-            
+
             if (valA < valB) return direction === 'asc' ? -1 : 1;
             if (valA > valB) return direction === 'asc' ? 1 : -1;
             return 0;
         });
-        
+
         this._userSorted = true;
         this.closeSortModal();
         this.renderTable();
         this.showToast('排序完成');
+    },
+
+    // 评级排序值：字母*1000+分数（X=7>SSS=6>SS=5>S=4>A=3>B=2>C=1>无=0）
+    getGradeSortValue(game) {
+        const grade = this.getGameGrade(game);
+        const gradeOrder = { X: 7, SSS: 6, SS: 5, S: 4, A: 3, B: 2, C: 1 };
+        const gradeVal = grade ? (gradeOrder[grade] || 0) : 0;
+        if (!game._rawData) return gradeVal * 1000;
+        const gradeKey = Object.keys(game._rawData).find(k => k.includes('评级（成品级别）'));
+        if (!gradeKey) return gradeVal * 1000;
+        const raw = (game._rawData[gradeKey] || '').toString();
+        const numMatch = raw.match(/(\d+(?:\.\d+)?)/);
+        const score = numMatch ? parseFloat(numMatch[1]) : 0;
+        return gradeVal * 1000 + score;
     },
 
     parseFileSize(str) {

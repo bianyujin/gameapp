@@ -154,7 +154,7 @@ function mapRowToGame(row, headers) {
     if (titleField) {
         game.title = (row[titleField] || '').trim();
     } else {
-        game.title = get('文件ID') || '未命名';
+        return null; // 游戏名字段为空，跳过不上传
     }
 
     headers.forEach(h => {
@@ -234,6 +234,7 @@ async function syncSource(source, outputFile, label) {
         const row = notionPageToRow(page);
         const headers = Object.keys(row);
         const game = mapRowToGame(row, headers);
+        if (!game) continue; // 游戏名为空，跳过
         const fid = row['文件ID'] || game.title;
         if (fid && coverMap[fid]) {
             game.coverUrls = coverMap[fid];
@@ -241,8 +242,7 @@ async function syncSource(source, outputFile, label) {
         newItems.push(game);
     }
 
-    // 过滤未命名
-    const filtered = newItems.filter(g => g.title !== '未命名');
+    const filtered = newItems; // 已在 mapRowToGame 里跳过无标题数据
 
     // 字段统一和排序：按固定顺序（文件ID→链接→备注→评价→预览→时间→DL号）
     const FIELD_ORDER = [
