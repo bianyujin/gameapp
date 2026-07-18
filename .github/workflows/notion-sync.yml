@@ -33,6 +33,9 @@ jobs:
       - name: 过滤二维码
         run: node filter-qrcodes.js
 
+      - name: 检测网盘链接失效
+        run: node check-links.js
+
       - name: 提交推送
         run: |
           git config user.name "github-actions[bot]"

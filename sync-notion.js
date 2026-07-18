@@ -157,9 +157,19 @@ function mapRowToGame(row, headers) {
         return null; // 游戏名字段为空，跳过不上传
     }
 
+    // 合并 排雷+攻略 → 排雷/评价/攻略
+    const paixLeiKey = headers.find(h => h.includes('排雷'));
+    const gongLueKey = headers.find(h => h.includes('攻略'));
+    const mergedVal = [paixLeiKey, gongLueKey].map(k => k ? (row[k] || '').trim() : '').filter(Boolean).join('\n');
+    if (mergedVal) {
+        game._rawData['排雷/评价/攻略'] = mergedVal;
+        game._rawFields.push('排雷/评价/攻略');
+    }
+
     headers.forEach(h => {
         if (h === titleField || h === descriptionSource || h === categorySource) return; // 已映射字段不放入自定义字段
         if (h.includes('封面')) return; // 封面字段是图片，不显示
+        if (h.includes('排雷') || h.includes('攻略')) return; // 已合并到"排雷/评价/攻略"
         const val = (row[h] || '').trim();
         if (val) {
             if (isPrivateField(h)) {
@@ -249,7 +259,7 @@ async function syncSource(source, outputFile, label) {
         '文件ID',
         '百度', '迅雷', 'UC', '夸克', '预览',
         '备注',
-        '排雷',
+        '排雷/评价/攻略',
         '评级',
         '成品级别',
         '剧情',
@@ -258,7 +268,6 @@ async function syncSource(source, outputFile, label) {
         '内容cg',
         'CV质量',
         '修正分',
-        '攻略',
         '最后修改时间',
         '创建时间',
         'DL号'

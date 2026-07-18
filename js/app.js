@@ -980,10 +980,14 @@ const App = {
             if (isHidden) return '';
             const fieldVal = String(game._rawData[k] || '');
             const isLink = /^https?:\/\/\S+/i.test(fieldVal.trim());
+            const isInvalid = game._invalidLinks && game._invalidLinks.some(f => k.includes(f));
+            const valStyle = isInvalid
+                ? 'font-size: 13px; background: #2a0a0a; min-height: 40px; white-space: pre-wrap; word-break: break-all; color: #ef4444; text-decoration: line-through;'
+                : 'font-size: 13px; background: #0f172a; min-height: 40px; white-space: pre-wrap; word-break: break-all;';
             return `
                 <div class="form-group raw-field" data-field="${k}" data-index="${i}">
                     <label class="form-label" style="display: flex; justify-content: space-between; align-items: center;">
-                        <span>${k}</span>
+                        <span>${k}${isInvalid ? ' <span style="color:#ef4444;font-size:11px;background:#ef444420;padding:1px 6px;border-radius:3px;margin-left:4px;">失效</span>' : ''}</span>
                         <span style="display: flex; gap: 4px;">
                             ${this.isAdmin ? `
                                 <button type="button" onclick="App.moveRawField(${i}, -1)" style="background: #334155; border: none; color: #94a3b8; cursor: pointer; padding: 4px 8px; border-radius: 4px; font-size: 12px;">↑</button>
@@ -992,7 +996,7 @@ const App = {
                             ${isLink ? `<button type="button" onclick="App.copyFieldText(this)" style="background: #334155; border: none; color: #94a3b8; cursor: pointer; padding: 4px 8px; border-radius: 4px; font-size: 12px;">复制</button>` : ''}
                         </span>
                     </label>
-                    <div class="form-textarea raw-field-value" data-field="${k}" style="font-size: 13px; background: #0f172a; min-height: 40px; white-space: pre-wrap; word-break: break-all;">${fieldVal || '-'}</div>
+                    <div class="form-textarea raw-field-value" data-field="${k}" style="${valStyle}">${fieldVal || '-'}</div>
                 </div>
             `;
         }).join('');
