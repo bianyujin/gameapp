@@ -58,7 +58,10 @@ function isInvalid(url, result) {
     if (!result.html) return false;
     const t = result.html;
     if (url.includes('pan.baidu.com')) {
-        return /啊哦，你来晚了|链接不存在|分享已失效|此链接分享内容可能因为涉及侵权|分享的文件已经被删除|该分享已删除|分享内容可能因为|此链接已失效/i.test(t);
+        // 有效特征优先：有提取码输入框说明链接有效（即使版权声明含"分享内容可能"也不算失效）
+        if (/请输入提取码|提取码已复制|输入提取码|share-pwd|sharePwd/i.test(t)) return false;
+        // 明确的失效特征（去掉宽泛的"分享内容可能因为"）
+        return /啊哦，你来晚了|链接不存在|分享已失效|此链接分享内容可能因为涉及侵权|分享的文件已经被删除|该分享已删除|此链接已失效|无效的分享/i.test(t);
     }
     if (url.includes('pan.quark.cn')) {
         return /分享已取消|文件已被分享者删除|资源已删除|分享已过期|你访问的页面不存在|页面不存在|分享失效/i.test(t);
