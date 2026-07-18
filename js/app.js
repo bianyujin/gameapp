@@ -1997,8 +1997,10 @@ const App = {
         this.games = [];
         this.nextId = 51;
         this.globalFields = null;
+        this.collections = [];
 
         this.loadSampleData();
+        this.loadCollections();
         this.render();
         this.showToast('已重置，请点击同步加载数据');
     },
