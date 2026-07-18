@@ -321,12 +321,17 @@ const App = {
             const syncTime = parseInt(lastSyncTime) || 0;
             if (!hasGameData || !lastSyncTime || isNaN(syncTime) || (now - syncTime) > oneHour) {
                 console.log('自动同步开始...');
+                const beforeCount = this.games.length;
                 try {
                     await CloudSync.syncFromCloud();
                     try { Storage.setItem('gamehub_has_synced', 'true'); } catch(e) {}
                     try { Storage.setItem('gamehub_last_sync_time', now.toString()); } catch(e) {}
                     this.hideGuideBanner();
                     console.log('自动同步完成');
+                    // 数据条数没变，可能是CDN缓存，提示用户重置
+                    if (this.games.length === beforeCount) {
+                        setTimeout(() => this.showToast('数据未变化，如需刷新请点重置'), 2000);
+                    }
                 } catch (e) {
                     console.log('自动同步失败:', e);
                 }
@@ -981,9 +986,10 @@ const App = {
             const fieldVal = String(game._rawData[k] || '');
             const isLink = /^https?:\/\/\S+/i.test(fieldVal.trim());
             const isInvalid = game._invalidLinks && game._invalidLinks.some(f => k.includes(f));
+            const baseStyle = 'font-size: 13px; min-height: 40px; word-break: break-all; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; cursor: pointer;';
             const valStyle = isInvalid
-                ? 'font-size: 13px; background: #2a0a0a; min-height: 40px; white-space: pre-wrap; word-break: break-all; color: #ef4444; text-decoration: line-through;'
-                : 'font-size: 13px; background: #0f172a; min-height: 40px; white-space: pre-wrap; word-break: break-all;';
+                ? baseStyle + ' background: #2a0a0a; color: #ef4444; text-decoration: line-through;'
+                : baseStyle + ' background: #0f172a;';
             return `
                 <div class="form-group raw-field" data-field="${k}" data-index="${i}">
                     <label class="form-label" style="display: flex; justify-content: space-between; align-items: center;">
@@ -996,7 +1002,7 @@ const App = {
                             ${isLink ? `<button type="button" onclick="App.copyFieldText(this)" style="background: #334155; border: none; color: #94a3b8; cursor: pointer; padding: 4px 8px; border-radius: 4px; font-size: 12px;">复制</button>` : ''}
                         </span>
                     </label>
-                    <div class="form-textarea raw-field-value" data-field="${k}" style="${valStyle}">${fieldVal || '-'}</div>
+                    <div class="form-textarea raw-field-value" data-field="${k}" style="${valStyle}" onclick="this.style.webkitLineClamp = this.style.webkitLineClamp === '2' ? 'unset' : '2'">${fieldVal || '-'}</div>
                 </div>
             `;
         }).join('');
@@ -1435,20 +1441,20 @@ const App = {
     },
 
     // 获取游戏的时间戳（用于排序）
-    // 优先用"创建时间"（Notion同步不会重置），"最后修改时间"作备选
+    // 优先用"最后修改时间"，"创建时间"作备选
     // 时间字段为空时返回0（排最后，算最旧的）
     getGameDate(game) {
         if (game._rawData) {
-            // 1. 优先：创建时间（稳定，不被同步重置）
-            const created = game._rawData['创建时间'] || '';
-            if (created) {
-                const d = this.parseChineseDate(created);
-                if (d.getTime() > 0) return d.getTime();
-            }
-            // 2. 备选：最后修改时间
+            // 1. 优先：最后修改时间
             const edited = game._rawData['最后修改时间'] || game._rawData['最后修改'] || '';
             if (edited) {
                 const d = this.parseChineseDate(edited);
+                if (d.getTime() > 0) return d.getTime();
+            }
+            // 2. 备选：创建时间
+            const created = game._rawData['创建时间'] || '';
+            if (created) {
+                const d = this.parseChineseDate(created);
                 if (d.getTime() > 0) return d.getTime();
             }
         }

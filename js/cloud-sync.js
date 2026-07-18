@@ -92,7 +92,8 @@ const CloudSync = {
             const ctrl = new AbortController();
             const timer = setTimeout(() => ctrl.abort(), 30000);
             try {
-                res = await fetch(url, { signal: ctrl.signal });
+                const noCacheUrl = url + (url.includes('?') ? '&' : '?') + 't=' + Date.now();
+                res = await fetch(noCacheUrl, { signal: ctrl.signal, cache: 'no-cache' });
                 clearTimeout(timer);
                 if (res.ok) break;
                 console.log(`第${i}次请求失败: ${res.status}`);
@@ -202,7 +203,7 @@ const CloudSync = {
         console.log('尝试从config.json加载配置...');
         const fallback = 'https://cdn.jsdelivr.net/gh/bianyujin/gameapp@main/games.json';
         try {
-            const t = await fetch('config.json');
+            const t = await fetch('config.json?t=' + Date.now(), { cache: 'no-cache' });
             if (t.ok) {
                 const o = await t.json();
                 this.config.latestVersion = o.latest_version || '';
