@@ -150,7 +150,8 @@ const CloudSync = {
             _rawData: g._rawData || {},
             privateData: g.privateData || {},
             title: g.title || '未命名',
-            coverUrls: g.coverUrls || []
+            coverUrls: g.coverUrls || [],
+            _invalidLinks: g._invalidLinks || []
         };
     },
 
