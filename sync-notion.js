@@ -226,10 +226,12 @@ async function syncSource(source, outputFile, label) {
     } catch(e) {}
 
     const coverMap = {};
+    const previewMap = {};
     for (const item of oldData) {
         const fid = (item._rawData && item._rawData['文件ID']) || item.title;
         if (fid && item.coverUrls) {
             coverMap[fid] = item.coverUrls;
+            previewMap[fid] = (item._rawData && item._rawData['预览']) || '';
         }
     }
     console.log('已缓存封面图: ' + Object.keys(coverMap).length + ' 个');
@@ -240,19 +242,27 @@ async function syncSource(source, outputFile, label) {
 
     // 转换
     const newItems = [];
+    let previewChangedCount = 0;
     for (const page of pages) {
         const row = notionPageToRow(page);
         const headers = Object.keys(row);
         const game = mapRowToGame(row, headers);
         if (!game) continue; // 游戏名为空，跳过
         const fid = row['文件ID'] || game.title;
-        if (fid && coverMap[fid]) {
+        const currentPreview = row['预览'] || '';
+        // 预览链接没变才复用旧封面；变了就留空，让 extract-covers.js 重新提取
+        if (fid && coverMap[fid] && previewMap[fid] === currentPreview) {
             game.coverUrls = coverMap[fid];
+        } else if (fid && coverMap[fid] && previewMap[fid] !== currentPreview) {
+            previewChangedCount++;
         }
         newItems.push(game);
     }
 
     const filtered = newItems; // 已在 mapRowToGame 里跳过无标题数据
+    if (previewChangedCount > 0) {
+        console.log('预览链接变化: ' + previewChangedCount + ' 个游戏将重新提取封面');
+    }
 
     // 字段统一和排序：按固定顺序（文件ID→链接→备注→评价→预览→时间→DL号）
     const FIELD_ORDER = [
