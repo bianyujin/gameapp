@@ -89,9 +89,10 @@ function fetchUrl(url, timeoutMs = 10000) {
 }
 
 // ========== 主流程 ==========
-async function processFile(filePath, label, forceMode) {
+async function processFile(filePath, label, forceMode, gameFilter) {
     console.log(`\n--- ${label} ---`);
-    console.log(`读取 ${path.basename(filePath)}...${forceMode ? ' (强制模式)' : ''}`);
+    const mode = forceMode ? '强制模式' : (gameFilter ? '按游戏名: ' + gameFilter : '正常模式');
+    console.log(`读取 ${path.basename(filePath)}... (${mode})`);
     let games = [];
     try {
         games = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
@@ -108,7 +109,15 @@ async function processFile(filePath, label, forceMode) {
     // 收集需要处理的游戏
     const needProcess = [];
     for (const game of games) {
-        if (!forceMode && game.coverUrls && Array.isArray(game.coverUrls) && game.coverUrls.length > 0) {
+        // 按游戏名过滤：标题包含关键词才处理
+        if (gameFilter) {
+            const title = (game.title || '').toLowerCase();
+            if (!title.includes(gameFilter.toLowerCase())) {
+            skipped++;
+            continue;
+            }
+        } else if (!forceMode && game.coverUrls && Array.isArray(game.coverUrls) && game.coverUrls.length > 0) {
+            // 正常模式：跳过已有封面的游戏
             skipped++;
             continue;
         }
@@ -168,10 +177,14 @@ async function processFile(filePath, label, forceMode) {
 
 async function main() {
     const forceMode = process.argv.includes('--force');
+    // 解析 --game=关键词 参数
+    const gameArg = process.argv.find(a => a.startsWith('--game='));
+    const gameFilter = gameArg ? gameArg.substring(7) : '';
     const COLLECTIONS_FILE = path.join(__dirname, 'collections.json');
 
-    await processFile(GAMES_FILE, '主数据', forceMode);
-    await processFile(COLLECTIONS_FILE, '合集数据', forceMode);
+    console.log('模式: ' + (forceMode ? '强制全部' : (gameFilter ? '按游戏名[' + gameFilter + ']' : '正常')));
+    await processFile(GAMES_FILE, '主数据', forceMode, gameFilter);
+    await processFile(COLLECTIONS_FILE, '合集数据', forceMode, gameFilter);
 
     console.log('\n========== 完成 ==========');
     console.log('\n提示: 运行 node filter-qrcodes.js 可过滤二维码图片');

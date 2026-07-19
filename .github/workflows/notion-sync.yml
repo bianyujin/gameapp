@@ -5,6 +5,11 @@ on:
     # 每天北京时间 6:00 自动运行（UTC 22:00）
     - cron: '0 22 * * *'
   workflow_dispatch: # 支持手动触发
+    inputs:
+      game_name:
+        description: '按游戏名重新提取封面（留空=正常同步全部）'
+        required: false
+        default: ''
 
 permissions:
   contents: write # 允许 git push
@@ -28,7 +33,13 @@ jobs:
         run: node sync-notion.js
 
       - name: 提取封面图
-        run: node extract-covers.js
+        run: |
+          if [ -n "${{ github.event.inputs.game_name }}" ]; then
+            echo "按游戏名重新提取: ${{ github.event.inputs.game_name }}"
+            node extract-covers.js --game=${{ github.event.inputs.game_name }}
+          else
+            node extract-covers.js
+          fi
 
       - name: 过滤二维码
         run: node filter-qrcodes.js
