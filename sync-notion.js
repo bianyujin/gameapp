@@ -297,7 +297,7 @@ async function syncSource(source, outputFile, label) {
     });
 
     console.log('有效数据: ' + filtered.length + ' 条');
-    fs.writeFileSync(outputFile, JSON.stringify(filtered, null, 2), 'utf-8');
+    fs.writeFileSync(outputFile, JSON.stringify(filtered), 'utf-8');
     console.log('已写入 ' + path.basename(outputFile));
     return filtered.length;
 }

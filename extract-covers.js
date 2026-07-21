@@ -165,7 +165,7 @@ async function processFile(filePath, label, forceMode, gameFilter) {
     }
 
     console.log(`写入 ${path.basename(filePath)}...`);
-    fs.writeFileSync(filePath, JSON.stringify(games, null, 2), 'utf-8');
+    fs.writeFileSync(filePath, JSON.stringify(games), 'utf-8');
 
     console.log(`成功: ${success}, 失败: ${failed}, 跳过: ${skipped}`);
     if (errors.length > 0) {
