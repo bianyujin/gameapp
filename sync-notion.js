@@ -157,13 +157,22 @@ function mapRowToGame(row, headers) {
         return null; // 游戏名字段为空，跳过不上传
     }
 
-    // 合并 排雷+攻略 → 排雷/评价/攻略
-    const paixLeiKey = headers.find(h => h.includes('排雷'));
-    const gongLueKey = headers.find(h => h.includes('攻略'));
-    const mergedVal = [paixLeiKey, gongLueKey].map(k => k ? (row[k] || '').trim() : '').filter(Boolean).join('\n');
-    if (mergedVal) {
-        game._rawData['排雷/评价/攻略'] = mergedVal;
-        game._rawFields.push('排雷/评价/攻略');
+    // 排雷/评价/攻略：Notion 已有此字段就直接用，否则合并排雷+攻略
+    const existKey = headers.find(h => h.includes('排雷/评价/攻略'));
+    if (existKey) {
+        const val = (row[existKey] || '').trim();
+        if (val) {
+            game._rawData['排雷/评价/攻略'] = val;
+            game._rawFields.push('排雷/评价/攻略');
+        }
+    } else {
+        const paixLeiKey = headers.find(h => h.includes('排雷'));
+        const gongLueKey = headers.find(h => h.includes('攻略'));
+        const mergedVal = [paixLeiKey, gongLueKey].map(k => k ? (row[k] || '').trim() : '').filter(Boolean).join('\n');
+        if (mergedVal) {
+            game._rawData['排雷/评价/攻略'] = mergedVal;
+            game._rawFields.push('排雷/评价/攻略');
+        }
     }
 
     headers.forEach(h => {
