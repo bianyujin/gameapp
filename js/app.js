@@ -134,7 +134,7 @@ const App = {
     carouselInterval: null,
     nextId: 51,
 
-    init() {
+    async init() {
         console.log(`[GAMEACG] v${APP_VERSION} 初始化 | Storage: ${Storage._type}`);
         try { this.isAdmin = Storage.getItem('gamehub_is_admin') === 'true'; } catch(e) { this.isAdmin = false; }
         try { this.loadDarkMode(); } catch(e) {}
@@ -142,7 +142,7 @@ const App = {
             const savedOrder = Storage.getItem('gamehub_field_order');
             if (savedOrder) this.globalFields = JSON.parse(savedOrder);
         } catch(e) {}
-        this.loadData();
+        await this.loadData();
         this.loadCollections();
         this.bindEvents();
         this.render();
@@ -445,31 +445,8 @@ const App = {
         }
     },
 
-    loadData() {
-        try {
-            const saved = Storage.getItem('gamehub_games');
-            const savedId = Storage.getItem('gamehub_nextId');
-
-            if (saved) {
-                try {
-                    this.games = JSON.parse(saved);
-                    this.games.forEach(g => {
-                        g.updateDate = new Date(g.updateDate);
-                    });
-                    this.nextId = savedId ? parseInt(savedId) : this.games.length + 1;
-                    console.log(`已加载 ${this.games.length} 条数据`);
-                    return;
-                } catch (e) {
-                    console.error('加载数据失败:', e);
-                }
-            }
-        } catch(e) {
-            console.log('localStorage不可用');
-        }
-        this._loadFromIDB();
-    },
-
-    async _loadFromIDB() {
+    async loadData() {
+        // 1. 优先从 IndexedDB 读取（容量大，适合 5MB+ 数据）
         try {
             const data = await IDBCache.get('games');
             if (data && Array.isArray(data) && data.length > 0) {
@@ -479,30 +456,78 @@ const App = {
                 });
                 const savedId = await IDBCache.get('nextId');
                 this.nextId = savedId || this.games.length + 1;
-                console.log(`从IndexedDB加载 ${this.games.length} 条数据`);
+                console.log(`[loadData] 从 IndexedDB 加载 ${this.games.length} 条数据`);
                 this.render();
-            } else {
-                this.loadSampleData();
+                return;
             }
         } catch(e) {
-            console.log('IndexedDB加载失败');
-            this.loadSampleData();
+            console.error('[loadData] 从 IndexedDB 加载失败:', e);
         }
-    },
 
-    saveData() {
+        // 2. 兼容旧版：从 localStorage 读取
         try {
-            Storage.setItem('gamehub_games', JSON.stringify(this.games));
-            Storage.setItem('gamehub_nextId', this.nextId.toString());
-            console.log('数据已保存到localStorage');
-        } catch (e) {
-            console.log('localStorage保存失败，尝试IndexedDB');
+            const saved = Storage.getItem('gamehub_games');
+            const savedId = Storage.getItem('gamehub_nextId');
+            if (saved) {
+                this.games = JSON.parse(saved);
+                this.games.forEach(g => {
+                    if (g.updateDate) g.updateDate = new Date(g.updateDate);
+                });
+                this.nextId = savedId ? parseInt(savedId) : this.games.length + 1;
+                console.log(`[loadData] 从 localStorage 加载 ${this.games.length} 条数据，将迁移到 IndexedDB`);
+                this.saveData(); // 迁移到 IndexedDB
+                return;
+            }
+        } catch(e) {
+            console.error('[loadData] 从 localStorage 加载失败:', e);
         }
-        IDBCache.set('games', this.games);
-        IDBCache.set('nextId', this.nextId);
+
+        // 3. 都没有，加载示例
+        this.loadSampleData();
     },
 
-    loadSampleData() {
+    async _loadFromIDB() {
+        // 旧入口，保留兼容性
+        await this.loadData();
+    },
+
+    async saveData() {
+        const gamesStr = JSON.stringify(this.games);
+        const largeData = gamesStr.length > 4 * 1024 * 1024; // 超过 4MB 视为大数据
+
+        // 1. 优先写入 IndexedDB（容量大，不惧怕 5MB+ 数据）
+        try {
+            await IDBCache.set('games', this.games);
+            await IDBCache.set('nextId', this.nextId);
+            console.log(`[saveData] 已保存到 IndexedDB: ${this.games.length} 条 (${Math.round(gamesStr.length / 1024 / 1024 * 100) / 100} MB)`);
+        } catch (e) {
+            console.error('[saveData] IndexedDB 保存失败:', e);
+        }
+
+        // 2. localStorage 只存元数据；数据量小时才存全量，避免 QuotaExceededError
+        try {
+            if (largeData) {
+                Storage.setItem('gamehub_meta', JSON.stringify({
+                    count: this.games.length,
+                    nextId: this.nextId,
+                    savedAt: Date.now(),
+                    source: 'indexeddb',
+                    size: gamesStr.length
+                }));
+                // 清理旧的全量 localStorage，避免占用空间
+                Storage.removeItem('gamehub_games');
+                Storage.removeItem('gamehub_nextId');
+            } else {
+                Storage.setItem('gamehub_games', gamesStr);
+                Storage.setItem('gamehub_nextId', this.nextId.toString());
+                Storage.removeItem('gamehub_meta');
+            }
+        } catch (e) {
+            console.log('[saveData] localStorage 保存失败:', e.message);
+        }
+    },
+
+    async loadSampleData() {
         const titles = ['星际探险', '王国保卫战', '极速狂飙', '魔法大陆', '开心消消乐', '忍者传说', '像素地牢', '音乐大师', '王者荣耀', '和平精英', '原神', '我的世界', '英雄联盟手游', '崩坏：星穹铁道', '明日方舟', '阴阳师', '第五人格', '穿越火线', 'QQ飞车', '天天酷跑'];
         const categories = ['动作', '角色扮演', '策略', '休闲', '竞技', '冒险'];
         const icons = ['🚀', '🏰', '🏎️', '✨', '🍬', '🥷', '🗡️', '🎵', '⚔️', '🔫', '🌍', '🧱', '🏹', '🚄', '🏥', '👹', '🎭', '💣', '🏁', '🏃'];
@@ -520,7 +545,7 @@ const App = {
                 isFavorite: Math.random() > 0.7
             });
         }
-        this.saveData();
+        await this.saveData();
     },
 
     bindEvents() {
@@ -1985,8 +2010,8 @@ const App = {
         this.showToast('数据已导出');
     },
 
-    clearCache() {
-        const keys = ['gamehub_games', 'gamehub_nextId', 'gamehub_has_synced',
+    async clearCache() {
+        const keys = ['gamehub_games', 'gamehub_nextId', 'gamehub_meta', 'gamehub_has_synced',
             'gamehub_last_sync_time', 'gamehub_local_data_version',
             'gamehub_favorites', 'gamehub_view_history', 'gamehub_field_order'];
         keys.forEach(k => Storage.removeItem(k));
@@ -1994,12 +2019,17 @@ const App = {
         this._previewCache = new Map();
         this._coverCache = {};
 
+        try {
+            await IDBCache.set('games', []);
+            await IDBCache.set('nextId', 51);
+        } catch(e) { console.log('清理IndexedDB失败', e); }
+
         this.games = [];
         this.nextId = 51;
         this.globalFields = null;
         this.collections = [];
 
-        this.loadSampleData();
+        await this.loadSampleData();
         this.loadCollections();
         this.render();
         this.showToast('已重置，请点击同步加载数据');

@@ -1,4 +1,30 @@
-const CACHE_NAME = 'gameacg-v5';
+const CACHE_NAME = 'gameacg-v6';
+
+const APP_SHELL = [
+  '/',
+  '/index.html',
+  '/js/app.js',
+  '/js/cloud-sync.js',
+  '/css/styles.min.css',
+  '/css/styles.css',
+  '/manifest.json'
+];
+
+function isAppShell(url) {
+  const pathname = url.pathname;
+  return APP_SHELL.includes(pathname) ||
+    pathname.startsWith('/js/') ||
+    pathname.startsWith('/css/') ||
+    pathname === '/index.html' ||
+    pathname === '/';
+}
+
+function isDataFile(url) {
+  const pathname = url.pathname;
+  return pathname.endsWith('/games.json') ||
+    pathname.endsWith('/collections.json') ||
+    pathname.endsWith('/config.json');
+}
 
 self.addEventListener('install', event => {
   self.skipWaiting();
@@ -12,31 +38,47 @@ self.addEventListener('activate', event => {
   );
 });
 
+// Network-first: 先请求网络，成功后更新缓存并返回；失败才用缓存
+async function networkFirst(request) {
+  const cache = await caches.open(CACHE_NAME);
+  try {
+    const networkResponse = await fetch(request);
+    if (networkResponse && networkResponse.status === 200) {
+      cache.put(request, networkResponse.clone());
+    }
+    return networkResponse;
+  } catch (err) {
+    const cachedResponse = await cache.match(request);
+    if (cachedResponse) return cachedResponse;
+    throw err;
+  }
+}
+
+// Cache-first: 有缓存直接返回，没有才请求网络并缓存
+async function cacheFirst(request) {
+  const cache = await caches.open(CACHE_NAME);
+  const cachedResponse = await cache.match(request);
+  if (cachedResponse) return cachedResponse;
+
+  const networkResponse = await fetch(request);
+  if (networkResponse && networkResponse.status === 200) {
+    cache.put(request, networkResponse.clone());
+  }
+  return networkResponse;
+}
+
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
-  
+
   const url = new URL(event.request.url);
   if (url.protocol !== 'http:' && url.protocol !== 'https:') return;
-  
-  event.respondWith(
-    caches.match(event.request).then(cached => {
-      // 有缓存就先返回，同时后台更新
-      if (cached) {
-        fetch(event.request).then(response => {
-          if (response && response.status === 200) {
-            caches.open(CACHE_NAME).then(cache => cache.put(event.request, response.clone()));
-          }
-        }).catch(() => {});
-        return cached;
-      }
-      // 无缓存则网络请求
-      return fetch(event.request).then(response => {
-        if (response && response.status === 200) {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
-        }
-        return response;
-      });
-    })
-  );
+
+  // 应用壳（HTML/JS/CSS）和数据文件必须 network-first，否则新部署会被旧缓存挡住
+  if (isAppShell(url) || isDataFile(url)) {
+    event.respondWith(networkFirst(event.request));
+    return;
+  }
+
+  // 其他静态资源（图片、字体等）用 cache-first，减少重复下载
+  event.respondWith(cacheFirst(event.request));
 });

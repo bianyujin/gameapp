@@ -88,29 +88,38 @@ const CloudSync = {
     async _fetchAndProcess(url) {
         console.log('请求URL:', url);
         let res = null;
+        let lastErr = null;
+        // 数据量约 5MB，30 秒在弱网下容易超时，延长至 90 秒
+        const FETCH_TIMEOUT = 90000;
         for (let i = 1; i <= 3; i++) {
             const ctrl = new AbortController();
-            const timer = setTimeout(() => ctrl.abort(), 30000);
+            const timer = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT);
             try {
                 const noCacheUrl = url + (url.includes('?') ? '&' : '?') + 't=' + Date.now();
                 res = await fetch(noCacheUrl, { signal: ctrl.signal, cache: 'no-cache' });
                 clearTimeout(timer);
                 if (res.ok) break;
+                lastErr = new Error(`HTTP ${res.status}: 数据源返回错误`);
                 console.log(`第${i}次请求失败: ${res.status}`);
             } catch(err) {
                 clearTimeout(timer);
-                console.log(`第${i}次请求失败: ${err.message}`);
+                lastErr = err;
+                const isTimeout = err.name === 'AbortError';
+                console.log(`第${i}次请求失败: ${isTimeout ? '请求超时' : err.message}`);
                 if (i < 3) { console.log(`${i}秒后重试...`); await new Promise(r => setTimeout(r, 2000 * i)); }
             }
         }
-        if (!res || !res.ok) throw new Error('数据下载失败，请检查网络连接');
+        if (!res || !res.ok) {
+            const isTimeout = lastErr && lastErr.name === 'AbortError';
+            throw new Error(isTimeout ? '下载数据超时（90秒），请检查网络或稍后重试' : (lastErr ? lastErr.message : '数据下载失败，请检查网络连接'));
+        }
         console.log('响应状态:', res.status);
         const text = await res.text();
         console.log('响应内容前200字符:', text.substring(0, 200));
         if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) throw new Error('返回的是HTML页面，不是JSON数据');
         let data;
         try { data = JSON.parse(text); }
-        catch(err) { console.error('JSON解析失败:', err); throw new Error('JSON解析失败'); }
+        catch(err) { console.error('JSON解析失败:', err); throw new Error('JSON解析失败: 数据格式异常'); }
 
         let games;
         if (Array.isArray(data)) {
@@ -125,7 +134,7 @@ const CloudSync = {
         App.games = games;
         App._userSorted = false;
         App.nextId = games.length + 1;
-        App.saveData();
+        await App.saveData();
         App.render();
         if (App._coverEnabled) setTimeout(() => App.preloadCoverUrls(), 500);
         this.saveLocalDataVersion(this.config.gamesDataVersion);
