@@ -307,20 +307,35 @@ const App = {
 
     async autoSync() {
         try {
-            const autoSyncEnabled = Storage.getItem('gamehub_auto_sync_enabled') === 'true';
-            if (!autoSyncEnabled) {
+            // 默认开启自动同步；仅当用户显式关闭（存储值为 'false'）时才跳过
+            const autoSyncDisabled = Storage.getItem('gamehub_auto_sync_enabled') === 'false';
+            if (autoSyncDisabled) {
                 console.log('自动同步已关闭，使用缓存数据');
                 return;
             }
 
-            const lastSyncTime = Storage.getItem('gamehub_last_sync_time');
-            const hasGameData = !!Storage.getItem('gamehub_games');
             const now = Date.now();
             const oneHour = 60 * 60 * 1000;
+            const lastSyncTime = parseInt(Storage.getItem('gamehub_last_sync_time')) || 0;
 
-            const syncTime = parseInt(lastSyncTime) || 0;
-            if (!hasGameData || !lastSyncTime || isNaN(syncTime) || (now - syncTime) > oneHour) {
-                console.log('自动同步开始...');
+            // 判定本地是否已有"真实数据"：demo 为 50 条，真实数据为 1000+ 条
+            const hasRealData = this.games.length > 100;
+            const stale = (now - lastSyncTime) > oneHour;
+
+            // 版本检查：云端 config 的 games_data_version 比本地新则强制同步
+            let versionChanged = false;
+            try {
+                await CloudSync.loadCloudConfig();
+                const cloudVer = CloudSync.config.gamesDataVersion;
+                const localVer = CloudSync.config.localDataVersion;
+                versionChanged = !!(cloudVer && localVer && cloudVer !== localVer) || !!(cloudVer && !localVer);
+            } catch(e) {
+                console.log('版本检查失败，改用时间判断:', e.message);
+            }
+
+            if (!hasRealData || !lastSyncTime || isNaN(lastSyncTime) || stale || versionChanged) {
+                const reason = versionChanged ? '检测到云端数据版本更新' : (hasRealData ? '本地数据已过期' : '本地无真实数据');
+                console.log('自动同步开始（' + reason + '）...');
                 const beforeCount = this.games.length;
                 try {
                     await CloudSync.syncFromCloud();
@@ -335,6 +350,8 @@ const App = {
                 } catch (e) {
                     console.log('自动同步失败:', e);
                 }
+            } else {
+                console.log('自动同步跳过（本地数据仍新鲜，未超过 1 小时且版本一致）');
             }
         } catch(e) {
             console.log('autoSync跳过（存储不可用）');
