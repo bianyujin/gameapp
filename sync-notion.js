@@ -91,7 +91,18 @@ function notionPageToRow(page) {
         if (key.includes('\uFFFD')) continue; // 过滤乱码字段名（Notion API 偶发返回重复的乱码版字段）
         row[key] = extractPropValue(props[key]);
     }
+    // 保留 Notion 元数据，用于生成稳定 id 和 updateDate
+    row._notionPageId = page.id || '';
+    row._notionLastEditedTime = page.last_edited_time || '';
     return row;
+}
+
+// 用 Notion page id (UUID) 生成稳定的数字 id，避免每次同步都变
+function stableIdFromNotionPageId(notionPageId) {
+    if (!notionPageId) return 0;
+    const hex = notionPageId.replace(/-/g, '');
+    // 取前 15 位 hex -> 60bit，仍在 JS 安全整数内
+    return parseInt(hex.slice(0, 15), 16) || 0;
 }
 
 // 字段映射（与 update.js 的 mapRowToGame 一致）
@@ -99,17 +110,27 @@ function findCol(headers, keyword) {
     return headers.findIndex(h => h.includes(keyword));
 }
 
-function mapRowToGame(row, headers) {
+function mapRowToGame(row, headers, existingIds) {
     const get = (kw) => { const i = findCol(headers, kw); return i >= 0 ? (row[headers[i]] || '').trim() : ''; };
 
+    // id：优先复用旧 id 保持稳定；没有旧 id 时按 Notion page id 生成稳定数字 id
+    const stableId = row._notionPageId ? stableIdFromNotionPageId(row._notionPageId) : 0;
+    const titleVal = (() => {
+        for (const kw of ['游戏名', '游戏名称', '名称', '标题']) {
+            const i = findCol(headers, kw);
+            if (i >= 0 && (row[headers[i]] || '').trim()) return (row[headers[i]] || '').trim();
+        }
+        return '';
+    })();
+    const fid = (row['文件ID'] || '').trim() || titleVal;
     const game = {
-        id: Date.now() + Math.random(),
+        id: (existingIds && existingIds[fid]) || stableId || (Date.now() + Math.random()),
         icon: get('图标') || '🎮',
         category: '其他',
         rating: parseFloat(get('评分')) || 0,
         downloads: get('下载量') || get('下载') || '-',
         description: '',
-        updateDate: new Date(),
+        updateDate: row._notionLastEditedTime ? new Date(row._notionLastEditedTime) : new Date(),
         isFavorite: false,
         _rawFields: [],
         _rawData: {},
@@ -236,14 +257,19 @@ async function syncSource(source, outputFile, label) {
 
     const coverMap = {};
     const previewMap = {};
+    const existingIds = {};
     for (const item of oldData) {
         const fid = (item._rawData && item._rawData['文件ID']) || item.title;
         if (fid && item.coverUrls) {
             coverMap[fid] = item.coverUrls;
             previewMap[fid] = (item._rawData && item._rawData['预览']) || '';
         }
+        if (fid && item.id !== undefined) {
+            existingIds[fid] = item.id;
+        }
     }
     console.log('已缓存封面图: ' + Object.keys(coverMap).length + ' 个');
+    console.log('已缓存稳定 id: ' + Object.keys(existingIds).length + ' 个');
 
     // 获取数据
     const pages = await queryDataSource(source.id, source.name);
@@ -255,7 +281,7 @@ async function syncSource(source, outputFile, label) {
     for (const page of pages) {
         const row = notionPageToRow(page);
         const headers = Object.keys(row);
-        const game = mapRowToGame(row, headers);
+        const game = mapRowToGame(row, headers, existingIds);
         if (!game) continue; // 游戏名为空，跳过
         const fid = row['文件ID'] || game.title;
         const currentPreview = row['预览'] || '';
