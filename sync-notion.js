@@ -101,8 +101,9 @@ function notionPageToRow(page) {
 function stableIdFromNotionPageId(notionPageId) {
     if (!notionPageId) return 0;
     const hex = notionPageId.replace(/-/g, '');
-    // 取前 15 位 hex -> 60bit，仍在 JS 安全整数内
-    return parseInt(hex.slice(0, 15), 16) || 0;
+    // 取前 13 位 hex -> 52bit，小于 JS 安全整数上限(53bit)，不会舍入碰撞
+    // （之前取 15 位=60bit 会舍入，导致不同页面可能生成相同 id）
+    return parseInt(hex.slice(0, 13), 16) || 0;
 }
 
 // 字段映射（与 update.js 的 mapRowToGame 一致）
@@ -127,9 +128,8 @@ function mapRowToGame(row, headers, existingIds) {
         id: (existingIds && existingIds[fid]) || stableId || (Date.now() + Math.random()),
         icon: get('图标') || '🎮',
         category: '其他',
-        // Notion「评分」字段为 0-100 制（B=40/A=50/S=60/SS=75/SSS=80），
-        // 而 App 的评分筛选/滑块是 0-5 制，故 >5 时归一化到 0-5（÷20），≤5 视为已是 0-5 保持不变
-        rating: (() => { const r = parseFloat(get('评分')) || 0; return r > 5 ? +(r / 20).toFixed(2) : r; })(),
+        // Notion「评分」字段为 0-100 制（成品级别得分），App 端用评级体系显示/排序，此处原样保留得分
+        rating: parseFloat(get('评分')) || 0,
         downloads: get('下载量') || get('下载') || '-',
         description: '',
         updateDate: row._notionLastEditedTime ? new Date(row._notionLastEditedTime) : new Date(),
@@ -225,10 +225,10 @@ async function queryDataSource(dsId, dsName) {
     while (hasMore) {
         const body = JSON.stringify({ page_size: 100, start_cursor: cursor });
         const res = await fetchNotion('https://api.notion.com/v1/data_sources/' + dsId + '/query', body);
-        if (res.status === 429) {
+        if (res.status === 429 || res.status >= 500) {
             retryCount++;
-            if (retryCount > 10) { console.log('  [' + dsName + '] 速率限制重试过多，跳过'); break; }
-            console.log('  [' + dsName + '] 速率限制，等待3秒...');
+            if (retryCount > 10) { console.log('  [' + dsName + '] 重试过多，跳过'); break; }
+            console.log('  [' + dsName + '] ' + (res.status === 429 ? '速率限制' : '服务端错误 ' + res.status) + '，等待3秒重试...');
             await sleep(3000);
             continue;
         }
@@ -296,9 +296,28 @@ async function syncSource(source, outputFile, label) {
         newItems.push(game);
     }
 
+    // 去重 id：IndexedDB 以 id 为主键，重复 id 会导致记录互相覆盖丢失
+    // （冲突来源：历史 Date.now id 被多个记录复用 / 稳定 id 舍入碰撞）
+    const usedIds = new Set();
+    for (const g of newItems) {
+        if (usedIds.has(g.id)) {
+            let nid;
+            do { nid = Date.now() + Math.random(); } while (usedIds.has(nid));
+            g.id = nid;
+            console.log('  修正重复 id:', g.title && g.title.slice(0, 20));
+        }
+        usedIds.add(g.id);
+    }
+
     const filtered = newItems; // 已在 mapRowToGame 里跳过无标题数据
     if (previewChangedCount > 0) {
         console.log('预览链接变化: ' + previewChangedCount + ' 个游戏将重新提取封面');
+    }
+
+    // 稳定性保护：拉取异常（空数据/数据量骤降）时拒绝覆盖，保留现有数据，避免 App 数据被清空
+    if (filtered.length === 0 || (oldData.length > 50 && filtered.length < oldData.length * 0.6)) {
+        console.log('  [' + label + '] ⚠️ 本次数据异常（新 ' + filtered.length + ' 条 / 旧 ' + oldData.length + ' 条），跳过写入，保留现有数据！');
+        return oldData.length;
     }
 
     // 字段统一和排序：按固定顺序（文件ID→链接→备注→评价→预览→时间→DL号）
@@ -353,17 +372,16 @@ async function main() {
     // 同步合集数据
     const collCount = await syncSource(COLLECTION_SOURCE, COLLECTIONS_FILE, '合集数据(STU合集)');
 
-    // 更新 config.json 版本号
+    // 更新 config.json 版本号（北京时间，精确到分钟 YYYYMMDDHHMM）
+    // 每次同步生成唯一版本号，App 端检测到版本变化即强制重新拉取，保证数据及时更新
     try {
         const config = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf-8'));
-        const today = new Date();
-        const y = today.getFullYear();
-        const m = String(today.getMonth() + 1).padStart(2, '0');
-        const d = String(today.getDate()).padStart(2, '0');
-        config.games_data_version = y + m + d;
-        fs.writeFileSync(CONFIG_FILE, JSON.stringify(config), 'utf-8');
+        const bj = new Date(Date.now() + 8 * 3600 * 1000);
+        const pad = n => String(n).padStart(2, '0');
+        config.games_data_version = bj.getUTCFullYear() + pad(bj.getUTCMonth() + 1) + pad(bj.getUTCDate()) + pad(bj.getUTCHours()) + pad(bj.getUTCMinutes());
+        fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2), 'utf-8');
         console.log('\n已更新数据版本号: ' + config.games_data_version);
-    } catch(e) {}
+    } catch(e) { console.log('更新版本号失败:', e.message); }
 
     console.log('\n=== 同步完成 ===');
     console.log('主数据: ' + mainCount + ' 条');

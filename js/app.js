@@ -126,9 +126,7 @@ const App = {
         pageSize: 5,
         searchQuery: '',
         selectedItems: [],
-        filterCategories: new Set(),
-        minRating: 0,
-        maxRating: 5
+        filterCategories: new Set()
     },
     carouselIndex: 0,
     carouselInterval: null,
@@ -365,8 +363,6 @@ const App = {
         this.tableState.currentPage = 1;
         this.tableState.searchQuery = '';
         this.tableState.filterCategories.clear();
-        this.tableState.minRating = 0;
-        this.tableState.maxRating = 5;
         
         const searchInput = document.getElementById('tableSearch');
         if (searchInput) searchInput.value = '';
@@ -780,11 +776,6 @@ const App = {
                 return false;
             });
         }
-
-        games = games.filter(g =>
-            parseFloat(g.rating) >= this.tableState.minRating &&
-            parseFloat(g.rating) <= this.tableState.maxRating
-        );
 
         return games;
     },
@@ -1278,16 +1269,6 @@ const App = {
                             <label class="filter-label">游戏分类</label>
                             <div class="filter-options" id="filterCategories"></div>
                         </div>
-                        <div class="filter-group">
-                            <label class="filter-label">评分范围</label>
-                            <div class="filter-range">
-                                <input type="range" id="minRating" min="0" max="5" step="0.5" value="${this.tableState.minRating}" oninput="document.getElementById('minRatingVal').textContent=this.value">
-                                <span id="minRatingVal">${this.tableState.minRating}</span>
-                                <span>-</span>
-                                <input type="range" id="maxRating" min="0" max="5" step="0.5" value="${this.tableState.maxRating}" oninput="document.getElementById('maxRatingVal').textContent=this.value">
-                                <span id="maxRatingVal">${this.tableState.maxRating}</span>
-                            </div>
-                        </div>
                     </div>
                     <div class="modal-footer">
                         <button class="btn btn-secondary" onclick="App.resetFilters()">重置</button>
@@ -1322,15 +1303,11 @@ const App = {
 
     resetFilters() {
         this.tableState.filterCategories.clear();
-        this.tableState.minRating = 0;
-        this.tableState.maxRating = 5;
         this._userSorted = false;
         this.applyFilters();
     },
 
     applyFilters() {
-        this.tableState.minRating = parseFloat(document.getElementById('minRating')?.value || 0);
-        this.tableState.maxRating = parseFloat(document.getElementById('maxRating')?.value || 5);
         this.tableState.currentPage = 1;
         this.closeFilterModal();
         this.renderTable();
@@ -1849,14 +1826,17 @@ const App = {
     // ========== 工具方法 ==========
     getGameGrade(game) {
         if (!game._rawData) return null;
+        // 优先从「评级（成品级别）」字段取值，解析不出时回退到「评级」字段
         const gradeKey = Object.keys(game._rawData).find(k => k.includes('评级（成品级别）'));
-        if (!gradeKey) return null;
-        let val = (game._rawData[gradeKey] || '').toString().trim();
-        if (!val || val === '0' || val === '-' || gradeKey === val) return null;
-        // 处理各种格式：S / SS 80 / SSS 90 / A 50 / S(SS) / SS(SSS) 85 等
-        val = val.replace(/\(.*?\)/g, '').trim();       // 去掉括号注释
-        const m = val.match(/^(X|SSS|SS|S|A|B|C)\b/i);
-        return m ? m[1].toUpperCase() : (val.length <= 3 ? val.toUpperCase() : null);
+        let val = gradeKey ? (game._rawData[gradeKey] || '').toString().trim() : '';
+        if (!val || val === '0' || val === '-' || val === gradeKey) {
+            val = (game._rawData['评级'] || '').toString().trim();
+            if (!val) return null;
+        }
+        // 处理各种格式：S / SS 80 / SSS 90 / A 50 / S(SS) / SS(SSS) 85 / 80 SS(SSS) 等
+        // 评级字母可能在任意位置（分数在前的写法也支持），括号内补充说明一并识别
+        const m = val.match(/(X|SSS|SS|S|A|B|C)/i);
+        return m ? m[1].toUpperCase() : null;
     },
 
     getGradeDisplay(game) {
