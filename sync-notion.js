@@ -127,7 +127,9 @@ function mapRowToGame(row, headers, existingIds) {
         id: (existingIds && existingIds[fid]) || stableId || (Date.now() + Math.random()),
         icon: get('图标') || '🎮',
         category: '其他',
-        rating: parseFloat(get('评分')) || 0,
+        // Notion「评分」字段为 0-100 制（B=40/A=50/S=60/SS=75/SSS=80），
+        // 而 App 的评分筛选/滑块是 0-5 制，故 >5 时归一化到 0-5（÷20），≤5 视为已是 0-5 保持不变
+        rating: (() => { const r = parseFloat(get('评分')) || 0; return r > 5 ? +(r / 20).toFixed(2) : r; })(),
         downloads: get('下载量') || get('下载') || '-',
         description: '',
         updateDate: row._notionLastEditedTime ? new Date(row._notionLastEditedTime) : new Date(),
