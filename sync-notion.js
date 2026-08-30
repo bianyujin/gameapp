@@ -202,6 +202,7 @@ function mapRowToGame(row, headers, existingIds) {
         if (h === titleField || h === descriptionSource || h === categorySource) return; // 已映射字段不放入自定义字段
         if (h.includes('封面')) return; // 封面字段是图片，不显示
         if (h.includes('排雷') || h.includes('攻略')) return; // 已合并到"排雷/评价/攻略"
+        if (h.startsWith('_')) return; // 内部元数据（_notionPageId、_notionLastEditedTime 等），不入用户字段
         const val = (row[h] || '').trim();
         if (val) {
             if (isPrivateField(h)) {

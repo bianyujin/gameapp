@@ -13,6 +13,8 @@ const http = require('http');
 
 const GAMES_FILE = path.join(__dirname, 'games.json');
 
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
 // ========== 图片提取逻辑（与 app.js extractImagesFromHtml 一致）==========
 function extractImagesFromHtml(html, baseUrl) {
     const imgs = [];
@@ -138,15 +140,27 @@ async function processFile(filePath, label, forceMode, gameFilter) {
                 const previewUrls = preview.split('\n').map(s => s.trim()).filter(s => /^https?:\/\//i.test(s));
                 let allImgs = [];
                 for (const url of previewUrls) {
-                    try {
-                        const html = await fetchUrl(url, 15000);
-                        if (/需要密码|password.*required|enter.*password/i.test(html.substring(0, 2000))) {
-                            if (errors.length < 30) errors.push(`[${game.title?.substring(0,30)}] 加密相册: ${url}`);
-                            continue;
+                    let html = null;
+                    // 图站在 CI 环境偶发超时/限流，失败重试 3 次（间隔 2s/4s），之前是静默放弃导致封面丢失
+                    for (let attempt = 1; attempt <= 3; attempt++) {
+                        try {
+                            html = await fetchUrl(url, 15000);
+                            break;
+                        } catch(e) {
+                            if (attempt < 3) {
+                                await sleep(2000 * attempt);
+                            } else if (errors.length < 30) {
+                                errors.push(`[${game.title?.substring(0,30)}] 抓取失败(已重试3次): ${url} ${e.message}`);
+                            }
                         }
-                        const imgs = extractImagesFromHtml(html, url);
-                        allImgs = allImgs.concat(imgs);
-                    } catch(e) {}
+                    }
+                    if (!html) continue;
+                    if (/需要密码|password.*required|enter.*password/i.test(html.substring(0, 2000))) {
+                        if (errors.length < 30) errors.push(`[${game.title?.substring(0,30)}] 加密相册: ${url}`);
+                        continue;
+                    }
+                    const imgs = extractImagesFromHtml(html, url);
+                    allImgs = allImgs.concat(imgs);
                 }
                 const unique = [...new Set(allImgs)];
                 if (unique.length > 0) {
