@@ -1,6 +1,5 @@
 const AdminSystem = {
     config: {
-        adminPassword: '520hd123',
         isAdmin: false,
         firebaseConfig: null
     },
@@ -15,10 +14,7 @@ const AdminSystem = {
         if (saved) {
             this.config = { ...this.config, ...JSON.parse(saved) };
         }
-        if (!this.config.adminPassword) {
-            this.config.adminPassword = 'admin123';
-            this.saveConfig();
-        }
+        // 管理员密码不再存放在前端：由服务端环境变量 ADMIN_KEY 校验
     },
 
     saveConfig() {
@@ -30,16 +26,6 @@ const AdminSystem = {
         if (typeof App !== 'undefined') {
             App.isAdmin = this.config.isAdmin;
         }
-    },
-
-    login(password) {
-        if (password === this.config.adminPassword) {
-            this.config.isAdmin = true;
-            Storage.setItem('gamehub_is_admin', 'true');
-            App.isAdmin = true;
-            return true;
-        }
-        return false;
     },
 
     logout() {
@@ -79,17 +65,34 @@ const AdminSystem = {
     },
 
     async doLogin() {
-        const password = document.getElementById('adminPassword').value;
-        const isValid = await CloudSync.verifyAdminPassword(password);
-        if (isValid) {
+        const input = document.getElementById('adminPassword');
+        const password = ((input && input.value) || '').trim();
+        if (!password) {
+            App.showToast('请输入密码');
+            return;
+        }
+        const btn = document.querySelector('#adminLoginModal .btn-primary');
+        if (btn) btn.disabled = true;
+        try {
+            // 密码只在服务端校验；校验通过时返回私有数据
+            const data = await CloudSync.fetchPrivateData(password);
+            if (!data) {
+                App.showToast('❌ 密码错误');
+                return;
+            }
+            const n = CloudSync.applyPrivateData(data);
+            // 私有数据落盘到 IndexedDB，刷新后依然可见
+            if (typeof App.saveData === 'function') await App.saveData();
             this.config.isAdmin = true;
             Storage.setItem('gamehub_is_admin', 'true');
             App.isAdmin = true;
             this.closeAdminLogin();
-            App.showToast('✅ 管理员登录成功');
+            App.showToast('✅ 管理员登录成功（已载入' + n + '条私有数据）');
             location.reload();
-        } else {
-            App.showToast('❌ 密码错误');
+        } catch(e) {
+            App.showToast('❌ ' + e.message);
+        } finally {
+            if (btn) btn.disabled = false;
         }
     },
 
@@ -144,14 +147,10 @@ const AdminSystem = {
                             <h4>设置</h4>
                             <div class="form-group">
                                 <label class="form-label">GitHub Config URL (config.json 下载地址)</label>
-                                <input type="text" id="githubConfigUrl" class="form-input" 
+                                <input type="text" id="githubConfigUrl" class="form-input"
                                        value="${CloudSync.config.githubConfigUrl}" placeholder="https://github.com/.../config.json">
                             </div>
-                            <div class="form-group">
-                                <label class="form-label">管理员密码</label>
-                                <input type="password" id="newAdminPassword" class="form-input" 
-                                       value="${this.config.adminPassword}" placeholder="设置管理员密码">
-                            </div>
+                            <p class="form-hint">管理员密码在 Cloudflare Pages 环境变量 ADMIN_KEY 中设置（Settings → Environment variables）</p>
                             <h5>Notion 配置 (备用)</h5>
                             <div class="form-group">
                                 <label class="form-label">Notion Integration Token</label>
@@ -188,14 +187,7 @@ const AdminSystem = {
         location.reload();
     },
 
-    saveAdminPassword() {
-        this.config.adminPassword = document.getElementById('newAdminPassword').value;
-        this.saveConfig();
-        App.showToast('设置已保存');
-    },
-
     saveAdminSettings() {
-        this.config.adminPassword = document.getElementById('newAdminPassword').value;
         CloudSync.config.githubConfigUrl = document.getElementById('githubConfigUrl').value;
         CloudSync.config.notionToken = document.getElementById('notionToken').value;
         CloudSync.config.notionDatabaseId = document.getElementById('notionDatabaseId').value;

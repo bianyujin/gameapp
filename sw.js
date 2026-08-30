@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gameacg-v6';
+const CACHE_NAME = 'gameacg-v7';
 
 const APP_SHELL = [
   '/',
@@ -23,7 +23,9 @@ function isDataFile(url) {
   const pathname = url.pathname;
   return pathname.endsWith('/games.json') ||
     pathname.endsWith('/collections.json') ||
-    pathname.endsWith('/config.json');
+    pathname.endsWith('/config.json') ||
+    // 管理员私有数据接口绝不能走缓存，防止缓存旧数据或缓存错误状态
+    pathname.startsWith('/api/private-data');
 }
 
 self.addEventListener('install', event => {

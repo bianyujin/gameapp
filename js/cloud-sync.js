@@ -15,7 +15,6 @@ const CloudSync = {
         appVersion: '2.0.0',
         latestVersion: null,
         updateUrl: null,
-        cloudAdminPassword: null,
         gamesDataUrl: null,
         gamesDataVersion: null,
         localDataVersion: null
@@ -135,6 +134,11 @@ const CloudSync = {
         App._userSorted = false;
         App.nextId = games.length + 1;
         await App.saveData();
+        if (App.isAdmin) {
+            // 公开数据不含私有字段：管理员模式下从本地缓存恢复，避免自动同步后私有字段消失
+            this.applyCachedPrivateData();
+            await App.saveData();
+        }
         App.render();
         if (App._coverEnabled) setTimeout(() => App.preloadCoverUrls(), 500);
         this.saveLocalDataVersion(this.config.gamesDataVersion);
@@ -218,7 +222,6 @@ const CloudSync = {
                 const o = await t.json();
                 this.config.latestVersion = o.latest_version || '';
                 this.config.updateUrl = o.update_url || '';
-                this.config.cloudAdminPassword = o.admin_password || '';
                 this.config.gamesDataUrl = o.games_data_url || fallback;
                 this.config.gamesDataVersion = o.games_data_version || '';
                 this.config.notionEmbedUrl = o.notion_embed_url || '';
@@ -243,10 +246,56 @@ const CloudSync = {
         return { needsUpdate: false };
     },
 
-    async verifyAdminPassword(pwd) {
-        await this.loadCloudConfig(true);
-        if (this.config.cloudAdminPassword) return pwd === this.config.cloudAdminPassword;
-        return '520hd123' === pwd;
+    // ============ 管理员私有数据 ============
+    // 密码只在服务端（Cloudflare Pages 环境变量 ADMIN_KEY）校验，前端不保存、不比对密码，
+    // 校验通过后服务端返回私有字段数据，应用到内存数据并落盘/缓存。
+
+    // 用输入的密码向服务端换取私有数据；密码错误返回 null；服务未配置/网络异常抛错
+    async fetchPrivateData(pwd) {
+        const res = await fetch('/api/private-data', {
+            method: 'GET',
+            headers: { 'X-Admin-Key': String(pwd) },
+            cache: 'no-store'
+        });
+        if (res.status === 503) {
+            throw new Error('服务端未配置管理员密钥（Cloudflare Pages 环境变量 ADMIN_KEY）');
+        }
+        if (!res.ok) return null; // 密码错误（403），不区分其他错误细节
+        const text = await res.text();
+        try { return JSON.parse(text); }
+        catch(e) { throw new Error('私有数据格式异常'); }
+    },
+
+    // 把私有数据按 id 应用到内存中的游戏/合集，并缓存到本地（下次打开自动恢复）
+    applyPrivateData(data) {
+        try {
+            if (!data || typeof data !== 'object') return 0;
+            const gamesMap = data.games || {};
+            const collMap = data.collections || {};
+            let n = 0;
+            (App.games || []).forEach(g => {
+                const p = gamesMap[String(g.id)];
+                if (p && typeof p === 'object') { g.privateData = p; n++; }
+                else { g.privateData = {}; }
+            });
+            (App.collections || []).forEach(c => {
+                if (!c) return;
+                const p = collMap[String(c.id)];
+                if (p && typeof p === 'object') { c.privateData = p; }
+                else if (c.privateData) { c.privateData = {}; }
+            });
+            try { Storage.setItem('gamehub_private_cache', JSON.stringify(data)); } catch(e) {}
+            return n;
+        } catch(e) { console.log('应用私有数据失败:', e.message); return 0; }
+    },
+
+    // 从本地缓存恢复私有数据（用于自动同步整体替换数据之后）
+    applyCachedPrivateData() {
+        try {
+            const raw = Storage.getItem('gamehub_private_cache');
+            if (!raw) return;
+            this.applyPrivateData(JSON.parse(raw));
+        } catch(e) {}
     }
 };
 

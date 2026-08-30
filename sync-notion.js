@@ -15,6 +15,8 @@ const API_VERSION = '2025-09-03';
 const GAMES_FILE = path.join(__dirname, 'games.json');
 const COLLECTIONS_FILE = path.join(__dirname, 'collections.json');
 const CONFIG_FILE = path.join(__dirname, 'config.json');
+// 私有字段（搜索/FB/视频/版本及更新时间等）单独存放，由 /api/private-data 校验密码后返回
+const PRIVATE_FILE = path.join(__dirname, 'functions', '_data', 'private-data.json');
 
 // 主数据源：GAMEACG管理（galgame整理总表）→ games.json
 const MAIN_SOURCE = { id: '308d9616-6621-8152-b20b-000b3217d5fc', name: 'GAMEACG管理' };
@@ -22,6 +24,13 @@ const MAIN_SOURCE = { id: '308d9616-6621-8152-b20b-000b3217d5fc', name: 'GAMEACG
 const COLLECTION_SOURCE = { id: '318d9616-6621-803a-8feb-000b67b83a33', name: 'STU合集' };
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// 北京时间分钟级时间戳：YYYYMMDDHHMM
+function beijingStamp() {
+    const bj = new Date(Date.now() + 8 * 3600 * 1000);
+    const pad = n => String(n).padStart(2, '0');
+    return bj.getUTCFullYear() + pad(bj.getUTCMonth() + 1) + pad(bj.getUTCDate()) + pad(bj.getUTCHours()) + pad(bj.getUTCMinutes());
+}
 
 function fetchNotion(url, body) {
     return new Promise((resolve, reject) => {
@@ -318,7 +327,7 @@ async function syncSource(source, outputFile, label) {
     // 稳定性保护：拉取异常（空数据/数据量骤降）时拒绝覆盖，保留现有数据，避免 App 数据被清空
     if (filtered.length === 0 || (oldData.length > 50 && filtered.length < oldData.length * 0.6)) {
         console.log('  [' + label + '] ⚠️ 本次数据异常（新 ' + filtered.length + ' 条 / 旧 ' + oldData.length + ' 条），跳过写入，保留现有数据！');
-        return oldData.length;
+        return { count: oldData.length, privateMap: null, aborted: true };
     }
 
     // 字段统一和排序：按固定顺序（文件ID→链接→备注→评价→预览→时间→DL号）
@@ -354,9 +363,21 @@ async function syncSource(source, outputFile, label) {
     });
 
     console.log('有效数据: ' + filtered.length + ' 条');
+
+    // 私有字段拆分：公开的 games.json / collections.json 不再携带 privateData，
+    // 私有数据（搜索/FB/视频/版本及更新时间等）集中写入 functions/_data/private-data.json，
+    // 由 /api/private-data 校验管理员密钥后才返回
+    const privateMap = {};
+    for (const g of filtered) {
+        if (g.privateData && Object.keys(g.privateData).length > 0) {
+            privateMap[String(g.id)] = g.privateData;
+        }
+        delete g.privateData;
+    }
+
     fs.writeFileSync(outputFile, JSON.stringify(filtered), 'utf-8');
-    console.log('已写入 ' + path.basename(outputFile));
-    return filtered.length;
+    console.log('已写入 ' + path.basename(outputFile) + '（私有字段已拆分 ' + Object.keys(privateMap).length + ' 条）');
+    return { count: filtered.length, privateMap: privateMap, aborted: false };
 }
 
 async function main() {
@@ -368,25 +389,37 @@ async function main() {
     console.log('=== Notion 自动同步 ===');
 
     // 同步主数据
-    const mainCount = await syncSource(MAIN_SOURCE, GAMES_FILE, '主数据(GAMEACG管理)');
+    const mainRes = await syncSource(MAIN_SOURCE, GAMES_FILE, '主数据(GAMEACG管理)');
 
     // 同步合集数据
-    const collCount = await syncSource(COLLECTION_SOURCE, COLLECTIONS_FILE, '合集数据(STU合集)');
+    const collRes = await syncSource(COLLECTION_SOURCE, COLLECTIONS_FILE, '合集数据(STU合集)');
+
+    // 写入私有数据文件；某个数据源异常跳过时沿用文件里原有的部分，避免私有数据丢失
+    let existingPrivate = {};
+    try { existingPrivate = JSON.parse(fs.readFileSync(PRIVATE_FILE, 'utf-8')); } catch(e) {}
+    const privateOut = {
+        generatedAt: beijingStamp(),
+        games: mainRes.aborted ? (existingPrivate.games || {}) : mainRes.privateMap,
+        collections: collRes.aborted ? (existingPrivate.collections || {}) : collRes.privateMap
+    };
+    try {
+        fs.mkdirSync(path.dirname(PRIVATE_FILE), { recursive: true });
+        fs.writeFileSync(PRIVATE_FILE, JSON.stringify(privateOut), 'utf-8');
+        console.log('\n已写入 private-data.json（游戏 ' + Object.keys(privateOut.games).length + ' 条 / 合集 ' + Object.keys(privateOut.collections).length + ' 条）');
+    } catch(e) { console.log('写入私有数据失败:', e.message); }
 
     // 更新 config.json 版本号（北京时间，精确到分钟 YYYYMMDDHHMM）
     // 每次同步生成唯一版本号，App 端检测到版本变化即强制重新拉取，保证数据及时更新
     try {
         const config = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf-8'));
-        const bj = new Date(Date.now() + 8 * 3600 * 1000);
-        const pad = n => String(n).padStart(2, '0');
-        config.games_data_version = bj.getUTCFullYear() + pad(bj.getUTCMonth() + 1) + pad(bj.getUTCDate()) + pad(bj.getUTCHours()) + pad(bj.getUTCMinutes());
+        config.games_data_version = beijingStamp();
         fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2), 'utf-8');
         console.log('\n已更新数据版本号: ' + config.games_data_version);
     } catch(e) { console.log('更新版本号失败:', e.message); }
 
     console.log('\n=== 同步完成 ===');
-    console.log('主数据: ' + mainCount + ' 条');
-    console.log('合集数据: ' + collCount + ' 条');
+    console.log('主数据: ' + mainRes.count + ' 条');
+    console.log('合集数据: ' + collRes.count + ' 条');
     console.log('\n（Git提交推送由GitHub Actions统一处理）');
 }
 
