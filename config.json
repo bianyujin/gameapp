@@ -3,6 +3,6 @@
   "update_url": "https://pan.baidu.com/s/1cnng925doaegghKTx7Oo3w?pwd=BAYJ",
   "admin_password": "520hd123",
   "games_data_url": "https://gameapp-2e8.pages.dev/games.json",
-  "games_data_version": "202608300838",
+  "games_data_version": "202608300845",
   "fallback_url": "https://cdn.jsdelivr.net/gh/bianyujin/gameapp@main/games.json"
 }
