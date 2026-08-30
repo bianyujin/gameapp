@@ -9,6 +9,7 @@
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 const TOKEN = process.env.NOTION_TOKEN;
 const API_VERSION = '2025-09-03';
@@ -30,6 +31,21 @@ function beijingStamp() {
     const bj = new Date(Date.now() + 8 * 3600 * 1000);
     const pad = n => String(n).padStart(2, '0');
     return bj.getUTCFullYear() + pad(bj.getUTCMonth() + 1) + pad(bj.getUTCDate()) + pad(bj.getUTCHours()) + pad(bj.getUTCMinutes());
+}
+
+// 私有数据加密：AES-256-GCM，密钥 = SHA-256(ADMIN_KEY)，与 /api/private-data 的解密约定一致。
+// 仓库里只保存密文（即使仓库公开也读不到内容），解密只发生在 Cloudflare 端。
+function encryptPrivateData(obj, adminKey) {
+    const iv = crypto.randomBytes(12);
+    const key = crypto.createHash('sha256').update(String(adminKey), 'utf8').digest();
+    const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+    const ct = Buffer.concat([cipher.update(JSON.stringify(obj), 'utf8'), cipher.final()]);
+    return {
+        v: 1,
+        iv: iv.toString('base64'),
+        // WebCrypto 的 AES-GCM 解密要求密文末尾附带 16 字节 auth tag
+        data: Buffer.concat([ct, cipher.getAuthTag()]).toString('base64')
+    };
 }
 
 function fetchNotion(url, body) {
@@ -394,7 +410,7 @@ async function main() {
     // 同步合集数据
     const collRes = await syncSource(COLLECTION_SOURCE, COLLECTIONS_FILE, '合集数据(STU合集)');
 
-    // 写入私有数据文件；某个数据源异常跳过时沿用文件里原有的部分，避免私有数据丢失
+    // 写入私有数据文件（加密存储）；某个数据源异常跳过时沿用文件里原有的部分，避免私有数据丢失
     let existingPrivate = {};
     try { existingPrivate = JSON.parse(fs.readFileSync(PRIVATE_FILE, 'utf-8')); } catch(e) {}
     const privateOut = {
@@ -402,11 +418,17 @@ async function main() {
         games: mainRes.aborted ? (existingPrivate.games || {}) : mainRes.privateMap,
         collections: collRes.aborted ? (existingPrivate.collections || {}) : collRes.privateMap
     };
-    try {
-        fs.mkdirSync(path.dirname(PRIVATE_FILE), { recursive: true });
-        fs.writeFileSync(PRIVATE_FILE, JSON.stringify(privateOut), 'utf-8');
-        console.log('\n已写入 private-data.json（游戏 ' + Object.keys(privateOut.games).length + ' 条 / 合集 ' + Object.keys(privateOut.collections).length + ' 条）');
-    } catch(e) { console.log('写入私有数据失败:', e.message); }
+    if (!process.env.ADMIN_KEY) {
+        // 没有加密密钥时绝不能写明文：保留仓库里现有的密文，私有数据维持上次同步内容
+        console.log('\n⚠️ 未设置 ADMIN_KEY 环境变量，跳过私有数据更新（保留现有密文文件）');
+    } else {
+        try {
+            fs.mkdirSync(path.dirname(PRIVATE_FILE), { recursive: true });
+            const enc = encryptPrivateData(privateOut, process.env.ADMIN_KEY);
+            fs.writeFileSync(PRIVATE_FILE, JSON.stringify(enc), 'utf-8');
+            console.log('\n已写入加密 private-data.json（游戏 ' + Object.keys(privateOut.games).length + ' 条 / 合集 ' + Object.keys(privateOut.collections).length + ' 条）');
+        } catch(e) { console.log('写入私有数据失败:', e.message); }
+    }
 
     // 更新 config.json 版本号（北京时间，精确到分钟 YYYYMMDDHHMM）
     // 每次同步生成唯一版本号，App 端检测到版本变化即强制重新拉取，保证数据及时更新
