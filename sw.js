@@ -22,8 +22,12 @@ function isAppShell(url) {
 function isDataFile(url) {
   const pathname = url.pathname;
   return pathname.endsWith('/games.json') ||
+    pathname.endsWith('/games-lite.json') ||
+    pathname.startsWith('/games-full/') ||
     pathname.endsWith('/collections.json') ||
     pathname.endsWith('/config.json') ||
+    pathname.endsWith('/carousel.json') ||
+    pathname.endsWith('/scrolling.json') ||
     // 管理员私有数据接口绝不能走缓存，防止缓存旧数据或缓存错误状态
     pathname.startsWith('/api/private-data');
 }

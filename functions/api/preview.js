@@ -26,12 +26,13 @@ export async function onRequestGet(context) {
             signal: AbortSignal.timeout(12000),
             cf: { cacheTtl: 1800, cacheEverything: true }
         });
-        const text = await upstream.text();
-        return new Response(text, {
+        // 必须用 arrayBuffer 原样转发字节：之前用 text() 会把图片二进制按 UTF-8
+        // 解码再重编码，字节被 U+FFFD 替换损坏，导致代理出的图片全部无法解码
+        const buf = await upstream.arrayBuffer();
+        return new Response(buf, {
             status: upstream.status,
             headers: {
-                // 前端只做正则提取，返回纯文本避免被浏览器当 HTML 执行
-                'Content-Type': 'text/plain; charset=utf-8',
+                'Content-Type': upstream.headers.get('content-type') || 'application/octet-stream',
                 'Cache-Control': 'public, max-age=1800'
             }
         });

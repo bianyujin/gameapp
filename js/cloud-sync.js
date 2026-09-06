@@ -70,6 +70,14 @@ const CloudSync = {
     },
 
     async syncFromGamesJson() {
+        // 轻量优先：games-lite.json（约1/3体积）失败或不存在时回退完整 games.json
+        try {
+            const lite = (this.config.gamesDataUrl || '').replace(/games\.json(\?.*)?$/, 'games-lite.json');
+            const liteFallback = (this.config.fallbackUrl || '').replace(/games\.json(\?.*)?$/, 'games-lite.json');
+            if (await this._syncFromLite(lite, liteFallback !== lite ? liteFallback : null)) return;
+        } catch (e) {
+            console.log('轻量数据不可用，回退完整数据包:', e && e.message);
+        }
         console.log('同步数据...');
         let t = this.config.gamesDataUrl;
         if (!t) throw new Error('games_data_url未配置');
@@ -82,6 +90,85 @@ const CloudSync = {
             catch(err) { console.log('失败:', err.message); lastErr = err; }
         }
         throw lastErr || new Error('所有数据源均失败');
+    },
+
+    async _syncFromLite(liteUrl, fallbackLiteUrl) {
+        if (!liteUrl || liteUrl.indexOf('games-lite.json') < 0) return false;
+        const urls = [liteUrl];
+        if (fallbackLiteUrl) urls.push(fallbackLiteUrl);
+        let data = null;
+        for (const url of urls) {
+            try {
+                // lite 缺失时上游可能挂起（如 jsdelivr 不存在的文件），20 秒超时兜底
+                const ctrl = new AbortController();
+                const timer = setTimeout(() => ctrl.abort(), 20000);
+                const noCacheUrl = url + (url.includes('?') ? '&' : '?') + 't=' + Date.now();
+                const res = await fetch(noCacheUrl, { cache: 'no-cache', signal: ctrl.signal });
+                clearTimeout(timer);
+                if (!res.ok) { console.log('lite不可用(' + res.status + '):', url.substring(0, 60)); continue; }
+                data = await res.json();
+                break;
+            } catch (e) { console.log('lite请求失败:', e.message); }
+        }
+        // 合理性校验：真实数据 1000+ 条，demo/异常数据直接回退完整包
+        if (!data || !Array.isArray(data.games) || data.games.length < 100) {
+            if (data) console.log('lite数据异常，回退完整包');
+            return false;
+        }
+        console.log('使用轻量数据包:', data.games.length, '条');
+        const fields = Array.isArray(data.fields) ? data.fields : [];
+        const games = data.games.map(g => {
+            const n = this.ensureGameStructure(g);
+            if (fields.length) n._rawFields = fields.slice();
+            n._lite = true;
+            n._chunk = typeof g._c === 'number' ? g._c : 0;
+            return n;
+        });
+        this.normalizeAllFields(games);
+        // normalize 会把全部字段补成空串，lite 里删掉空串省体积（详情分块里是全的）
+        games.forEach(g => {
+            Object.keys(g._rawData).forEach(k => { if (g._rawData[k] === '') delete g._rawData[k]; });
+        });
+        App.games = games;
+        App._userSorted = false;
+        App.nextId = games.length + 1;
+        await App.saveData();
+        if (App.isAdmin) {
+            this.applyCachedPrivateData();
+            await App.saveData();
+        }
+        App.render();
+        if (App._coverEnabled) setTimeout(() => App.preloadCoverUrls(), 500);
+        this.saveLocalDataVersion(this.config.gamesDataVersion);
+        this.config.lastSync = Date.now();
+        this.saveConfig();
+        App.showToast('同步成功');
+        return true;
+    },
+
+    _chunkCache: new Map(),
+
+    // 轻量条目按需加载所属详情分块，并把完整字段合并回原对象（保持引用不变）
+    async ensureFull(game) {
+        if (!game || !game._lite || game._fullLoaded) return game;
+        const idx = typeof game._chunk === 'number' ? game._chunk : 0;
+        let chunkGames = this._chunkCache.get(idx);
+        if (!chunkGames) {
+            const base = (this.config.gamesDataUrl || '').replace(/games\.json(\?.*)?$/, '');
+            const noCacheUrl = base + 'games-full/' + idx + '.json?t=' + Date.now();
+            const res = await fetch(noCacheUrl, { cache: 'no-cache' });
+            if (!res.ok) throw new Error('详情分块加载失败: ' + res.status);
+            const data = await res.json();
+            chunkGames = Array.isArray(data.games) ? data.games : [];
+            this._chunkCache.set(idx, chunkGames);
+        }
+        const full = chunkGames.find(g => String(g.id) === String(game.id));
+        if (!full) throw new Error('详情数据未找到');
+        delete game._lite;
+        delete game._chunk;
+        Object.assign(game, full);
+        game._fullLoaded = true;
+        return game;
     },
 
     async _fetchAndProcess(url) {

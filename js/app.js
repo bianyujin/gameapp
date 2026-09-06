@@ -966,6 +966,16 @@ const App = {
     editGameByIndex(index) {
         const game = this.games[index];
         if (!game) return;
+        if (game._lite && typeof CloudSync !== 'undefined' && CloudSync.ensureFull) {
+            // 轻量数据：先按需加载详情分块再渲染完整详情，失败则展示基础信息
+            CloudSync.ensureFull(game)
+                .then(() => this.openEditModal(game, this.games.indexOf(game)))
+                .catch(() => {
+                    this.showToast('详情加载失败，仅显示基础信息');
+                    this.openEditModal(game, this.games.indexOf(game));
+                });
+            return;
+        }
         this.openEditModal(game, index);
     },
 
@@ -1867,8 +1877,12 @@ const App = {
     },
 
     _coverResolving: new Set(),
-    _resolveCoverAsync(game) {
+    async _resolveCoverAsync(game) {
         if (this._coverResolving.has(game.id)) return;
+        if (game._lite && typeof CloudSync !== 'undefined' && CloudSync.ensureFull) {
+            try { await CloudSync.ensureFull(game); } catch (e) { /* 加载失败则按 lite 数据跳过 */ }
+            if (game._lite) return;
+        }
         const preview = this.getPreviewUrl(game);
         if (!preview) return;
         this._coverResolving.add(game.id);
@@ -2469,6 +2483,12 @@ const App = {
             this.closeBackupPasswordModal();
             await CloudSync.loadCloudConfig();
             let notionUrl = CloudSync.config.notionEmbedUrl || 'https://resonant-laser-29e.notion.site/ebd//30ad9616662180568b20d6d607924c76?v=30ad96166621802abfa8000cc45c28e6';
+            if (/GAMEACGApp/.test(navigator.userAgent)) {
+                // 原生 App 内：iframe 里的移动 UA 会被 Notion 前端拒绝渲染，
+                // 改为顶层跳转，由 App 接管用桌面模式全屏打开
+                window.location.href = notionUrl;
+                return;
+            }
             const iframe = document.getElementById('notionIframe');
             if (iframe) {
                 iframe.src = notionUrl;

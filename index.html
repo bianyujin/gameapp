@@ -10,6 +10,7 @@
     <link rel="preload" href="js/app.js?v=29" as="script">
     <link rel="preload" href="js/cloud-sync.js?v=4" as="script">
     <link rel="dns-prefetch" href="https://image.acg.lol">
+    <link rel="preconnect" href="https://image.acg.lol">
     <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
     <link rel="dns-prefetch" href="https://gameapp-2e8.pages.dev">
     <link rel="stylesheet" href="css/styles.min.css?v=6">
@@ -29,6 +30,13 @@
 
         <main class="app-content" id="mainContent">
             <div id="page-home" class="page active">
+                <div id="scrollBar" style="display:none;margin-bottom:12px;background:#1e293b;border-radius:10px;overflow:hidden;height:34px;position:relative;">
+                    <div id="scrollTrack" style="position:absolute;white-space:nowrap;line-height:34px;display:flex;will-change:transform;"></div>
+                </div>
+                <div id="carousel" style="display:none;margin-bottom:16px;position:relative;border-radius:12px;overflow:hidden;">
+                    <div id="carouselSlides" style="position:relative;height:150px;"></div>
+                    <div id="carouselDots" style="position:absolute;bottom:8px;left:0;right:0;display:flex;justify-content:center;gap:6px;"></div>
+                </div>
                 <div class="guide-banner" id="guideBanner" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px 20px; border-radius: 12px; margin-bottom: 20px;">
                     <div style="display: flex; align-items: center; gap: 12px;">
                         <span style="font-size: 24px;">📖</span>
@@ -216,6 +224,11 @@
                             <span class="settings-label">最后更新时间</span>
                             <span class="settings-value" id="dataSourceValue" style="font-size:12px;">未同步</span>
                         </div>
+                        <div class="settings-item" onclick="App.showUserAgreement()" style="cursor:pointer;">
+                            <span class="settings-icon">📄</span>
+                            <span class="settings-label">用户协议</span>
+                            <span class="settings-value">›</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -347,6 +360,93 @@
                 });
             }
         });
+    </script>
+    <script>
+    // 用户协议（我的→关于 进入；取其精华：少侠把指南做成内容页而非启动拦截）
+    App.showUserAgreement = function () {
+        if (document.getElementById('userAgreementModal')) return;
+        document.body.insertAdjacentHTML('beforeend', `
+        <div class="modal" id="userAgreementModal">
+            <div class="modal-backdrop" onclick="document.getElementById('userAgreementModal').remove()"></div>
+            <div class="modal-content" style="max-width:420px;">
+                <div class="modal-header"><h3 class="modal-title">📄 用户协议</h3></div>
+                <div class="modal-body" style="font-size:13px;color:#94a3b8;line-height:1.9;">
+                    <p style="color:#f87171;">1. 本应用内容面向年满 18 周岁的成年用户。如果你未满 18 周岁，或所在地区法律禁止访问成人内容，请立即退出本应用。</p>
+                    <p>2. 本应用展示的资源信息均来自互联网平台，仅供爱好者测试、学习与技术之用，版权归发行公司所有，禁止用于商业用途或传播牟利。</p>
+                    <p>3. 请在下载后 24 小时内自觉删除相关文件；如果喜欢，请购买正版并获得合法授权。</p>
+                    <p>4. 二次打包、二次转发造成的法律侵权问题，由二次打包发布者、转发者自行承担；因使用本应用产生的一切后果由用户自行负责，开发者不承担任何法律及连带责任。</p>
+                    <p>5. 启动并使用本应用即视为已阅读并同意以上全部条款。</p>
+                </div>
+                <div class="modal-footer" style="justify-content:center;">
+                    <button class="btn btn-primary" onclick="document.getElementById('userAgreementModal').remove()">我知道了</button>
+                </div>
+            </div>
+        </div>`);
+    };
+    </script>
+    <script>
+    // 首页运营位：轮播图 + 滚动公告（数据文件放仓库根目录，push 即更新；缺失/为空自动隐藏）
+    App.initHomeExtras = async function () {
+        // 滚动公告
+        try {
+            const r = await fetch('scrolling.json?t=' + Date.now(), { cache: 'no-cache' });
+            if (r.ok) {
+                const arr = await r.json();
+                if (Array.isArray(arr) && arr.length) {
+                    const bar = document.getElementById('scrollBar');
+                    const track = document.getElementById('scrollTrack');
+                    const items = arr.map(it => {
+                        const t = (it.text || '').replace(/</g, '&lt;');
+                        return it.link
+                            ? `<a href="${it.link}" target="_blank" rel="noopener" style="color:#a5b4fc;text-decoration:none;margin:0 28px;">${t}</a>`
+                            : `<span style="color:#94a3b8;margin:0 28px;">${t}</span>`;
+                    }).join('');
+                    track.innerHTML = items + items; // 双份内容实现无缝循环
+                    bar.style.display = 'block';
+                    let x = 0;
+                    setInterval(() => {
+                        x -= 0.5;
+                        if (Math.abs(x) >= track.scrollWidth / 2) x = 0;
+                        track.style.transform = 'translateX(' + x + 'px)';
+                    }, 30);
+                }
+            }
+        } catch (e) { /* 无公告则隐藏 */ }
+        // 轮播图
+        try {
+            const r = await fetch('carousel.json?t=' + Date.now(), { cache: 'no-cache' });
+            if (r.ok) {
+                const arr = await r.json();
+                if (Array.isArray(arr) && arr.length) {
+                    const box = document.getElementById('carousel');
+                    const slides = document.getElementById('carouselSlides');
+                    const dots = document.getElementById('carouselDots');
+                    slides.innerHTML = arr.map((it, i) => {
+                        const op = i === 0 ? 1 : 0;
+                        const inner = `<img src="${it.image}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" onerror="this.closest('#carousel').style.display='none'">`;
+                        return it.link
+                            ? `<a href="${it.link}" target="_blank" rel="noopener" style="position:absolute;inset:0;opacity:${op};transition:opacity .6s;display:block;">${inner}</a>`
+                            : `<div style="position:absolute;inset:0;opacity:${op};transition:opacity .6s;">${inner}</div>`;
+                    }).join('');
+                    arr.forEach((_, i) => {
+                        const d = document.createElement('span');
+                        d.style.cssText = `width:7px;height:7px;border-radius:50%;background:${i === 0 ? '#a5b4fc' : '#475569'};`;
+                        dots.appendChild(d);
+                    });
+                    box.style.display = 'block';
+                    if (arr.length > 1) {
+                        let cur = 0;
+                        setInterval(() => {
+                            cur = (cur + 1) % arr.length;
+                            [...slides.children].forEach((el, i) => el.style.opacity = i === cur ? 1 : 0);
+                            [...dots.children].forEach((el, i) => el.style.background = i === cur ? '#a5b4fc' : '#475569');
+                        }, 4000);
+                    }
+                }
+            }
+        } catch (e) { /* 无轮播则隐藏 */ }
+    };
+    App.initHomeExtras();
     </script>
 </body>
 </html>

@@ -3,6 +3,6 @@
   "target": {
     "namespace": "android_app",
     "package_name": "dev.pages.gameapp_2e8.twa",
-    "sha256_cert_fingerprints": ["86:49:16:34:ED:5F:4E:DB:9B:BD:07:87:8E:21:DB:6F:50:7B:46:7B:E3:6E:A9:FF:67:20:8A:39:7E:27:04:1B"]
+    "sha256_cert_fingerprints": ["3D:FA:21:62:A7:48:54:EA:E4:F9:25:20:BA:41:4A:72:EE:52:A5:19:AE:12:EF:1D:4D:88:84:C3:A6:82:86:7F"]
   }
 }]

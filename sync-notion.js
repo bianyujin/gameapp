@@ -439,6 +439,12 @@ async function main() {
         console.log('\n已更新数据版本号: ' + config.games_data_version);
     } catch(e) { console.log('更新版本号失败:', e.message); }
 
+    // 生成轻量索引 + 详情分块（games-lite.json / games-full/*.json），
+    // 供前端"轻量优先"同步使用；失败不影响主流程（前端自动回退完整 games.json）
+    try {
+        require('./tools/split-data').splitGames(GAMES_FILE, __dirname);
+    } catch(e) { console.log('生成轻量数据失败(不影响主流程):', e.message); }
+
     console.log('\n=== 同步完成 ===');
     console.log('主数据: ' + mainRes.count + ' 条');
     console.log('合集数据: ' + collRes.count + ' 条');
