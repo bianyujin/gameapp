@@ -385,15 +385,50 @@ const App = {
         placeholder.style.display = 'flex';
         placeholder.querySelector('.placeholder-text').textContent = '加载中...';
         
-        const loadImage = (url) => {
+        // 顺序尝试的直链图源（失败自动下一个），全失败后兜底用自家游戏封面
+        const directApis = [
+            'https://t.alcy.cc/ycy',
+            'https://www.dmoe.cc/random.php',
+            'https://api.paugram.com/wallpaper/',
+            'https://api.btstu.cn/sjbz/api.php',
+            'https://img.xjh.me/random_img.php'
+        ];
+        let directIdx = 0;
+
+        const loadCoverFallback = () => {
+            try {
+                const pool = (App.games || []).filter(g => g.coverUrls && g.coverUrls.length);
+                if (!pool.length) {
+                    placeholder.querySelector('.placeholder-text').textContent = '加载失败，点击刷新按钮重试';
+                    return;
+                }
+                const g = pool[Math.floor(Math.random() * pool.length)];
+                loadImage(g.coverUrls[Math.floor(Math.random() * g.coverUrls.length)], () => {
+                    placeholder.querySelector('.placeholder-text').textContent = '加载失败，点击刷新按钮重试';
+                });
+            } catch (e) {
+                placeholder.querySelector('.placeholder-text').textContent = '加载失败，点击刷新按钮重试';
+            }
+        };
+
+        const loadDirect = () => {
+            if (directIdx >= directApis.length) {
+                loadCoverFallback();
+                return;
+            }
+            loadImage(directApis[directIdx++] + '?t=' + Date.now(), loadDirect);
+        };
+
+        const loadImage = (url, onFail) => {
             img.onload = () => {
                 img.style.display = 'block';
                 placeholder.style.display = 'none';
             };
             
             img.onerror = () => {
-                placeholder.querySelector('.placeholder-text').textContent = '加载失败，点击刷新按钮重试';
-                console.log('图片加载失败');
+                console.log('图片加载失败:', url);
+                if (onFail) onFail();
+                else placeholder.querySelector('.placeholder-text').textContent = '加载失败，点击刷新按钮重试';
             };
             
             img.src = url + '?t=' + Date.now();
