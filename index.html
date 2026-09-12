@@ -42,20 +42,6 @@
                         </div>
                     </div>
                 </div>
-                <div id="announcementSection" style="background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%); border-radius: 12px; padding: 14px 16px; margin-bottom: 16px;">
-                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-                        <span style="font-size:16px;">📢</span>
-                        <span style="font-weight:600;color:#e2e8f0;font-size:14px;">更新日志</span>
-                    </div>
-                    <div style="color:#94a3b8;font-size:12px;line-height:1.8;">
-                        <div>🔗 新增网盘链接失效自动检测（beta），失效链接红色标记</div>
-                        <div>🔄 同步缓存修复，数据不更新时提示重置</div>
-                        <div>🚀 接入 Cloudflare 加速，页面加载更快更稳</div>
-                        <div>🔄 新增自动同步功能（beta），开启后自动缓存最新数据</div>
-                        <div>🛠️ 修复多项已知问题，提升稳定性</div>
-                    </div>
-                    <div style="color:#6366f1;font-size:11px;margin-top:8px;">更新于 2026.07</div>
-                </div>
                 <div class="random-image-section">
                     <div style="font-size:12px;color:#64748b;margin-bottom:6px;">📷 P站随机图片</div>
                     <div class="random-image-container" id="randomImageContainer">
@@ -65,26 +51,6 @@
                             <div class="placeholder-text">加载中...</div>
                         </div>
                     </div>
-                </div>
-                <div onclick="App.showUserAgreement()" style="margin-top:16px;background:linear-gradient(135deg,#0ea5e9 0%,#2563eb 100%);border-radius:12px;padding:16px 20px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;box-shadow:0 4px 12px rgba(14,165,233,0.3);">
-                    <div style="display:flex;align-items:center;gap:12px;">
-                        <span style="font-size:28px;">📄</span>
-                        <div>
-                            <div style="font-weight:600;color:white;font-size:15px;">用户协议</div>
-                            <div style="color:rgba(255,255,255,0.85);font-size:12px;margin-top:2px;">使用须知与免责声明</div>
-                        </div>
-                    </div>
-                    <span style="color:rgba(255,255,255,0.8);font-size:20px;">›</span>
-                </div>
-                <div onclick="App.showJieyaMima()" style="margin-top:12px;background:linear-gradient(135deg,#f59e0b 0%,#ef4444 100%);border-radius:12px;padding:16px 20px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;box-shadow:0 4px 12px rgba(245,158,11,0.3);">
-                    <div style="display:flex;align-items:center;gap:12px;">
-                        <span style="font-size:28px;">🔑</span>
-                        <div>
-                            <div style="font-weight:600;color:white;font-size:15px;">解压教程与密码</div>
-                            <div style="color:rgba(255,255,255,0.85);font-size:12px;margin-top:2px;">解压问题看这里（图很长，慢慢看）</div>
-                        </div>
-                    </div>
-                    <span style="color:rgba(255,255,255,0.8);font-size:20px;">›</span>
                 </div>
                 <div onclick="App.switchPage('collections')" style="margin-top:16px;background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%);border-radius:12px;padding:16px 20px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;box-shadow:0 4px 12px rgba(99,102,241,0.3);">
                     <div style="display:flex;align-items:center;gap:12px;">
@@ -104,6 +70,7 @@
                         <span class="search-icon">🔍</span>
                         <input type="text" id="tableSearch" placeholder="搜索...">
                     </div>
+                    <button class="toolbar-btn" onclick="App.switchPage('collections')" title="部分合集" style="width:auto;padding:0 10px;font-size:12px;color:#e2e8f0;background:#334155;border:none;border-radius:18px;cursor:pointer;">部分合集</button>
                     <button class="toolbar-btn" onclick="App.randomSort()" title="随机推荐">🎲</button>
                     <button class="toolbar-btn" id="filterBtn" title="筛选">🔽</button>
                     <button class="toolbar-btn" id="sortBtn" title="排序">↕️</button>
@@ -195,7 +162,12 @@
                 <div class="settings-section">
                     <h3 class="settings-title">更多</h3>
                     <div class="settings-list">
-                        <div class="settings-item" id="notionBackupBtn">
+                                                <div class="settings-item" onclick="App.showJieyaMima()" style="cursor:pointer;">
+                            <span class="settings-icon">🔑</span>
+                            <span class="settings-label">解压教程与密码</span>
+                            <span class="settings-value">›</span>
+                        </div>
+<div class="settings-item" id="notionBackupBtn">
                             <span class="settings-icon">📋</span>
                             <span class="settings-label">备用</span>
                             <span class="settings-arrow">›</span>

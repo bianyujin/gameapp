@@ -967,13 +967,11 @@ const App = {
         const game = this.games[index];
         if (!game) return;
         if (game._lite && typeof CloudSync !== 'undefined' && CloudSync.ensureFull) {
-            // 轻量数据：先按需加载详情分块再渲染完整详情，失败则展示基础信息
+            // 立即打开弹窗展示基础信息；分块已在后台预载，通常瞬时补全
+            this.openEditModal(game, this.games.indexOf(game));
             CloudSync.ensureFull(game)
                 .then(() => this.openEditModal(game, this.games.indexOf(game)))
-                .catch(() => {
-                    this.showToast('详情加载失败，仅显示基础信息');
-                    this.openEditModal(game, this.games.indexOf(game));
-                });
+                .catch(() => {});
             return;
         }
         this.openEditModal(game, index);

@@ -139,6 +139,7 @@ const CloudSync = {
         }
         App.render();
         if (App._coverEnabled) setTimeout(() => App.preloadCoverUrls(), 500);
+        setTimeout(() => { try { this.preloadFullChunks(); } catch (e) {} }, 1200);
         this.saveLocalDataVersion(this.config.gamesDataVersion);
         this.config.lastSync = Date.now();
         this.saveConfig();
@@ -147,6 +148,25 @@ const CloudSync = {
     },
 
     _chunkCache: new Map(),
+
+    // 后台顺序预载全部详情分块：之后点任意游戏卡片都能秒开完整详情
+    async preloadFullChunks() {
+        if (!this.games.length || !this.games[0]._lite) return;
+        const maxC = Math.max(...this.games.map(g => typeof g._chunk === 'number' ? g._chunk : 0));
+        const base = (this.config.gamesDataUrl || '').replace(/games\.json(\?.*)?$/, '');
+        for (let i = 0; i <= maxC; i++) {
+            if (this._chunkCache.has(i)) continue;
+            try {
+                const res = await fetch(base + 'games-full/' + i + '.json?t=' + Date.now(), { cache: 'no-cache' });
+                if (res.ok) {
+                    const d = await res.json();
+                    this._chunkCache.set(i, Array.isArray(d.games) ? d.games : []);
+                }
+            } catch (e) { console.log('预载分块失败:', i, e.message); }
+            await new Promise(r => setTimeout(r, 400));
+        }
+        console.log('详情分块预载完成');
+    },
 
     // 轻量条目按需加载所属详情分块，并把完整字段合并回原对象（保持引用不变）
     async ensureFull(game) {
@@ -228,6 +248,7 @@ const CloudSync = {
         }
         App.render();
         if (App._coverEnabled) setTimeout(() => App.preloadCoverUrls(), 500);
+        setTimeout(() => { try { this.preloadFullChunks(); } catch (e) {} }, 1200);
         this.saveLocalDataVersion(this.config.gamesDataVersion);
         this.config.lastSync = Date.now();
         this.saveConfig();
