@@ -31,10 +31,10 @@
         <main class="app-content" id="mainContent">
             <div id="page-home" class="page active">
                 <div id="scrollBar" style="display:none;margin-bottom:12px;background:#1e293b;border-radius:10px;overflow:hidden;height:34px;position:relative;">
-                    <div id="scrollTrack" style="position:absolute;white-space:nowrap;line-height:34px;display:flex;will-change:transform;"></div>
+                    <div id="scrollTrack" style="position:absolute;white-space:nowrap;line-height:34px;font-size:12px;color:#94a3b8;display:flex;will-change:transform;"></div>
                 </div>
                 <div id="carousel" style="display:none;margin-bottom:16px;position:relative;border-radius:12px;overflow:hidden;">
-                    <div id="carouselSlides" style="position:relative;height:150px;"></div>
+                    <div id="carouselSlides" style="position:relative;height:110px;"></div>
                     <div id="carouselDots" style="position:absolute;bottom:8px;left:0;right:0;display:flex;justify-content:center;gap:6px;"></div>
                 </div>
                 <div class="guide-banner" id="guideBanner" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px 20px; border-radius: 12px; margin-bottom: 20px;">
@@ -398,7 +398,7 @@
                     const items = arr.map(it => {
                         const t = (it.text || '').replace(/</g, '&lt;');
                         return it.link
-                            ? `<a href="${it.link}" target="_blank" rel="noopener" style="color:#a5b4fc;text-decoration:none;margin:0 28px;">${t}</a>`
+                            ? `<a href="${it.link}" style="color:#a5b4fc;text-decoration:none;margin:0 28px;font-size:12px;">${t}</a>`
                             : `<span style="color:#94a3b8;margin:0 28px;">${t}</span>`;
                     }).join('');
                     track.innerHTML = items + items; // 双份内容实现无缝循环
@@ -425,7 +425,7 @@
                         const op = i === 0 ? 1 : 0;
                         const inner = `<img src="${it.image}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" onerror="this.closest('#carousel').style.display='none'">`;
                         return it.link
-                            ? `<a href="${it.link}" target="_blank" rel="noopener" style="position:absolute;inset:0;opacity:${op};transition:opacity .6s;display:block;">${inner}</a>`
+                            ? `<a href="${it.link}" style="position:absolute;inset:0;opacity:${op};transition:opacity .6s;display:block;">${inner}</a>`
                             : `<div style="position:absolute;inset:0;opacity:${op};transition:opacity .6s;">${inner}</div>`;
                     }).join('');
                     arr.forEach((_, i) => {
@@ -436,11 +436,18 @@
                     box.style.display = 'block';
                     if (arr.length > 1) {
                         let cur = 0;
-                        setInterval(() => {
-                            cur = (cur + 1) % arr.length;
-                            [...slides.children].forEach((el, i) => el.style.opacity = i === cur ? 1 : 0);
-                            [...dots.children].forEach((el, i) => el.style.background = i === cur ? '#a5b4fc' : '#475569');
-                        }, 4000);
+                        let touchX = 0;
+                        const show = (i) => {
+                            cur = (i + arr.length) % arr.length;
+                            [...slides.children].forEach((el, j) => el.style.opacity = j === cur ? 1 : 0);
+                            [...dots.children].forEach((el, j) => el.style.background = j === cur ? '#a5b4fc' : '#475569');
+                        };
+                        setInterval(() => show(cur + 1), 4000);
+                        box.addEventListener('touchstart', e => { touchX = e.touches[0].clientX; }, { passive: true });
+                        box.addEventListener('touchend', e => {
+                            const dx = e.changedTouches[0].clientX - touchX;
+                            if (Math.abs(dx) > 40) show(cur + (dx < 0 ? 1 : -1));
+                        }, { passive: true });
                     }
                 }
             }

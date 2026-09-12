@@ -415,7 +415,7 @@ const App = {
                 if (data && data.data && data.data[0] && data.data[0].urls) {
                     const imageUrl = data.data[0].urls.regular || data.data[0].urls.original;
                     if (imageUrl) {
-                        loadImage(imageUrl);
+                        loadImage(imageUrl, loadDirect);
                     } else {
                         throw new Error('没有可用的图片URL');
                     }
