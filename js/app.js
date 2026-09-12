@@ -686,9 +686,19 @@ const App = {
             profile: '个人中心'
         };
         document.getElementById('headerTitle').textContent = titles[page];
-
+        const ha = document.getElementById('headerActions');
         if (page === 'table') {
+            ha.innerHTML =
+                '<button onclick="App.switchPage(\'collections\')" title="部分合集" style="width:auto;padding:0 10px;height:30px;font-size:12px;color:#e2e8f0;background:#334155;border:none;border-radius:18px;cursor:pointer;margin-right:6px;">合集</button>' +
+                '<button onclick="App.randomSort()" title="随机推荐" style="background:none;border:none;font-size:16px;cursor:pointer;padding:4px;">🎲</button>' +
+                '<button onclick="App.openFilterModal()" title="筛选" style="background:none;border:none;font-size:16px;cursor:pointer;padding:4px;">🔽</button>' +
+                '<button onclick="App.openSortModal()" title="排序" style="background:none;border:none;font-size:16px;cursor:pointer;padding:4px;">↕️</button>';
             this.renderTable();
+        } else if (ha) {
+            ha.innerHTML = '';
+        }
+        if (page === 'collections') {
+            this.renderCollections();
         }
         if (page === 'collections') {
             this.renderCollections();

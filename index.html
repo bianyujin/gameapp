@@ -33,13 +33,14 @@
                 <div id="scrollBar" style="display:none;margin-bottom:12px;background:#1e293b;border-radius:10px;overflow:hidden;height:34px;position:relative;">
                     <div id="scrollTrack" style="position:absolute;white-space:nowrap;line-height:34px;font-size:12px;color:#94a3b8;display:flex;will-change:transform;"></div>
                 </div>
-                <div class="guide-banner" id="guideBanner" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px 20px; border-radius: 12px; margin-bottom: 20px;">
-                    <div style="display: flex; align-items: center; gap: 12px;">
-                        <span style="font-size: 24px;">📖</span>
-                        <div>
-                            <div style="font-weight: 600; color: white; font-size: 14px;">欢迎来到 GAMEACG</div>
-                            <div style="color: rgba(255,255,255,0.9); font-size: 12px; margin-top: 4px;">首次使用需要在【我的】页面手动同步数据。有问题可以公众号反馈或QQ反馈。</div>
-                        </div>
+                <div class="guide-banner" id="guideBanner" style="background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%); border-radius: 12px; padding: 14px 16px; margin-bottom: 16px;">
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                        <span style="font-size:16px;">📢</span>
+                        <span style="font-weight:600;color:#e2e8f0;font-size:14px;">欢迎来到 GAMEACG</span>
+                    </div>
+                    <div style="color:#94a3b8;font-size:12px;line-height:1.8;">
+                        首次使用需要在【我的】页面手动同步数据。<br>
+                        有问题可以公众号反馈或QQ反馈。
                     </div>
                 </div>
                 <div class="random-image-section">
@@ -52,13 +53,6 @@
                         </div>
                     </div>
                 </div>
-                <div onclick="App.switchPage('collections')" style="margin-top:16px;background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%);border-radius:12px;padding:16px 20px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;box-shadow:0 4px 12px rgba(99,102,241,0.3);">
-                    <div style="display:flex;align-items:center;gap:12px;">
-                        <span style="font-size:28px;">📚</span>
-                        <div>
-                            <div style="font-weight:600;color:white;font-size:15px;">游戏合集</div>
-                            <div style="color:rgba(255,255,255,0.85);font-size:12px;margin-top:2px;">查看合集系列游戏</div>
-                        </div>
                     </div>
                     <span style="color:rgba(255,255,255,0.8);font-size:20px;">›</span>
                 </div>
@@ -70,10 +64,7 @@
                         <span class="search-icon">🔍</span>
                         <input type="text" id="tableSearch" placeholder="搜索...">
                     </div>
-                    <button class="toolbar-btn" onclick="App.switchPage('collections')" title="部分合集" style="width:auto;padding:0 10px;font-size:12px;color:#e2e8f0;background:#334155;border:none;border-radius:18px;cursor:pointer;">部分合集</button>
-                    <button class="toolbar-btn" onclick="App.randomSort()" title="随机推荐">🎲</button>
-                    <button class="toolbar-btn" id="filterBtn" title="筛选">🔽</button>
-                    <button class="toolbar-btn" id="sortBtn" title="排序">↕️</button>
+
                 </div>
 
                 <div class="games-grid" id="tableBody"></div>
