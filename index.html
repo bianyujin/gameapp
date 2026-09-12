@@ -190,7 +190,7 @@
                         <div class="settings-item" id="versionItem">
                             <span class="settings-icon">ℹ️</span>
                             <span class="settings-label">版本</span>
-                            <span class="settings-value">2.34</span>
+                            <span class="settings-value" id="versionValue">网页版</span>
                         </div>
                         <div class="settings-item" id="dataSourceItem">
                             <span class="settings-icon">📅</span>
@@ -297,6 +297,17 @@
                     }, 2000);
                 });
             }
+
+            // 版本显示：App 内读原生真实版本号（GameApp.version() 由 v2.50+ 提供），
+            // 浏览器里显示"网页版"；老版本 App 没有 version() 接口，保留兜底文案
+            try {
+                const versionValue = document.getElementById('versionValue');
+                if (versionValue && /GAMEACGApp/.test(navigator.userAgent)) {
+                    if (typeof GameApp !== 'undefined' && GameApp && typeof GameApp.version === 'function') {
+                        versionValue.textContent = 'v' + GameApp.version() + '（App）';
+                    }
+                }
+            } catch (e) {}
 
             App.initAvatar();
 
