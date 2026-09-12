@@ -30,9 +30,6 @@
 
         <main class="app-content" id="mainContent">
             <div id="page-home" class="page active">
-                <div id="scrollBar" style="display:none;margin-bottom:12px;background:#1e293b;border-radius:10px;overflow:hidden;height:34px;position:relative;">
-                    <div id="scrollTrack" style="position:absolute;white-space:nowrap;line-height:34px;font-size:12px;color:#94a3b8;display:flex;will-change:transform;"></div>
-                </div>
                 <div class="guide-banner" id="guideBanner" style="background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%); border-radius: 12px; padding: 14px 16px; margin-bottom: 16px;">
                     <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
                         <span style="font-size:16px;">📢</span>
@@ -376,37 +373,6 @@
             </div>
         </div>`);
     };
-    </script>
-    <script>
-    // 首页运营位：轮播图 + 滚动公告（数据文件放仓库根目录，push 即更新；缺失/为空自动隐藏）
-    App.initHomeExtras = async function () {
-        // 滚动公告
-        try {
-            const r = await fetch('scrolling.json?t=' + Date.now(), { cache: 'no-cache' });
-            if (r.ok) {
-                const arr = await r.json();
-                if (Array.isArray(arr) && arr.length) {
-                    const bar = document.getElementById('scrollBar');
-                    const track = document.getElementById('scrollTrack');
-                    const items = arr.map(it => {
-                        const t = (it.text || '').replace(/</g, '&lt;');
-                        return it.link
-                            ? `<a href="${it.link}" style="color:#a5b4fc;text-decoration:none;margin:0 28px;font-size:12px;">${t}</a>`
-                            : `<span style="color:#94a3b8;margin:0 28px;">${t}</span>`;
-                    }).join('');
-                    track.innerHTML = items + items; // 双份内容实现无缝循环
-                    bar.style.display = 'block';
-                    let x = 0;
-                    setInterval(() => {
-                        x -= 0.5;
-                        if (Math.abs(x) >= track.scrollWidth / 2) x = 0;
-                        track.style.transform = 'translateX(' + x + 'px)';
-                    }, 30);
-                }
-            }
-        } catch (e) { /* 无公告则隐藏 */ }
-    };
-    App.initHomeExtras();
     </script>
 </body>
 </html>
