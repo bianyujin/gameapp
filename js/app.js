@@ -2485,61 +2485,21 @@ const App = {
         }, 2500);
     },
 
-    openBackupPasswordModal() {
-        const modalHtml = `
-            <div id="backupPasswordModal" class="modal">
-                <div class="modal-backdrop" onclick="App.closeBackupPasswordModal()"></div>
-                <div class="modal-content" style="max-width: 350px;">
-                    <div class="modal-header">
-                        <h3 class="modal-title">请输入密码</h3>
-                        <button class="close-btn" onclick="App.closeBackupPasswordModal()">&times;</button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="form-group">
-                            <label class="form-label">访问密码</label>
-                            <input type="password" id="backupPasswordInput" class="form-input" placeholder="请输入密码" onkeypress="if(event.key==='Enter')App.verifyBackupPassword()">
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button class="btn btn-secondary" onclick="App.closeBackupPasswordModal()">取消</button>
-                        <button class="btn btn-primary" onclick="App.verifyBackupPassword()">确认</button>
-                    </div>
-                </div>
-            </div>
-        `;
-        document.body.insertAdjacentHTML('beforeend', modalHtml);
-        setTimeout(() => document.getElementById('backupPasswordInput')?.focus(), 100);
-    },
-
-    closeBackupPasswordModal() {
-        const modal = document.getElementById('backupPasswordModal');
-        if (modal) modal.remove();
-    },
-
-    async verifyBackupPassword() {
-        const input = document.getElementById('backupPasswordInput');
-        const password = input?.value || '';
-        
-        if (password === 'BAYJ') {
-            this.closeBackupPasswordModal();
-            await CloudSync.loadCloudConfig();
-            let notionUrl = CloudSync.config.notionEmbedUrl || 'https://resonant-laser-29e.notion.site/ebd//30ad9616662180568b20d6d607924c76?v=30ad96166621802abfa8000cc45c28e6';
-            if (/GAMEACGApp/.test(navigator.userAgent)) {
-                // 原生 App 内：iframe 里的移动 UA 会被 Notion 前端拒绝渲染，
-                // 改为顶层跳转，由 App 接管用桌面模式全屏打开
-                window.location.href = notionUrl;
-                return;
-            }
-            const iframe = document.getElementById('notionIframe');
-            if (iframe) {
-                iframe.src = notionUrl;
-            }
-            this.switchPage('notion');
-        } else {
-            this.showToast('密码错误');
-            input.value = '';
-            input.focus();
+    // 备用入口直通：已取消密码门（2026-09-13 用户要求），点击直接打开备用表格
+    async openBackup() {
+        await CloudSync.loadCloudConfig();
+        let notionUrl = CloudSync.config.notionEmbedUrl || 'https://resonant-laser-29e.notion.site/ebd//30ad9616662180568b20d6d607924c76?v=30ad96166621802abfa8000cc45c28e6';
+        if (/GAMEACGApp/.test(navigator.userAgent)) {
+            // 原生 App 内：iframe 里的移动 UA 会被 Notion 前端拒绝渲染，
+            // 改为顶层跳转，由 App 接管用桌面模式全屏打开
+            window.location.href = notionUrl;
+            return;
         }
+        const iframe = document.getElementById('notionIframe');
+        if (iframe) {
+            iframe.src = notionUrl;
+        }
+        this.switchPage('notion');
     },
 
     async checkForUpdates() {
