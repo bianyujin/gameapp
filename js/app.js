@@ -288,19 +288,16 @@ const App = {
     },
 
     checkGuideBanner() {
-        const hasSynced = Storage.getItem('gamehub_has_synced');
+        // 欢迎横幅常驻：不管有没有同步过都显示（2026-09-13 用户要求，不再同步后隐藏）
         const guideBanner = document.getElementById('guideBanner');
-        
-        if (!hasSynced && guideBanner) {
+
+        if (guideBanner) {
             guideBanner.style.display = 'block';
         }
     },
 
     hideGuideBanner() {
-        const guideBanner = document.getElementById('guideBanner');
-        if (guideBanner) {
-            guideBanner.style.display = 'none';
-        }
+        // 保留空实现：欢迎横幅改为常驻，同步成功不再隐藏（调用点无需改动）
     },
 
     async autoSync() {
@@ -383,6 +380,7 @@ const App = {
         
         img.style.display = 'none';
         placeholder.style.display = 'flex';
+        placeholder.classList.remove('failed');
         placeholder.querySelector('.placeholder-text').textContent = '加载中...';
         
         // 顺序尝试的直链图源（失败自动下一个），全失败后兜底用自家游戏封面
@@ -399,15 +397,15 @@ const App = {
             try {
                 const pool = (App.games || []).filter(g => g.coverUrls && g.coverUrls.length);
                 if (!pool.length) {
-                    placeholder.querySelector('.placeholder-text').textContent = '加载失败，点击刷新按钮重试';
+                    placeholder.querySelector('.placeholder-text').textContent = '加载失败，点击刷新按钮重试'; placeholder.classList.add('failed');
                     return;
                 }
                 const g = pool[Math.floor(Math.random() * pool.length)];
                 loadImage(g.coverUrls[Math.floor(Math.random() * g.coverUrls.length)], () => {
-                    placeholder.querySelector('.placeholder-text').textContent = '加载失败，点击刷新按钮重试';
+                    placeholder.querySelector('.placeholder-text').textContent = '加载失败，点击刷新按钮重试'; placeholder.classList.add('failed');
                 });
             } catch (e) {
-                placeholder.querySelector('.placeholder-text').textContent = '加载失败，点击刷新按钮重试';
+                placeholder.querySelector('.placeholder-text').textContent = '加载失败，点击刷新按钮重试'; placeholder.classList.add('failed');
             }
         };
 
@@ -428,10 +426,10 @@ const App = {
             img.onerror = () => {
                 console.log('图片加载失败:', url);
                 if (onFail) onFail();
-                else placeholder.querySelector('.placeholder-text').textContent = '加载失败，点击刷新按钮重试';
+                else placeholder.querySelector('.placeholder-text').textContent = '加载失败，点击刷新按钮重试'; placeholder.classList.add('failed');
             };
             
-            img.src = url + '?t=' + Date.now();
+            img.src = url + (url.includes('?') ? '&' : '?') + 't=' + Date.now();
         };
         
         const r18Value = this.isAdmin ? 1 : 0;
@@ -719,7 +717,7 @@ const App = {
             table: '数据管理',
             collections: '合集',
             profile: '个人中心'
-        };
+        , notion: '备用' };
         document.getElementById('headerTitle').textContent = titles[page];
         const ha = document.getElementById('headerActions');
         if (page === 'table') {
@@ -731,9 +729,6 @@ const App = {
             this.renderTable();
         } else if (ha) {
             ha.innerHTML = '';
-        }
-        if (page === 'collections') {
-            this.renderCollections();
         }
         if (page === 'collections') {
             this.renderCollections();
@@ -923,7 +918,7 @@ const App = {
             </div>
         `;
         
-        this.pushModalHistory('editModal');
+        this.pushModalHistory('listModal');
         document.body.insertAdjacentHTML('beforeend', modalHtml);
     },
 
@@ -1042,6 +1037,7 @@ const App = {
     },
 
     openEditModal(game, index) {
+        this._editModalIndex = (typeof index === 'number' && index >= 0) ? index : this.games.indexOf(game);
         this.addToHistory(game);
         const rawFields = game._rawFields || Object.keys(game._rawData || {});
         
@@ -1216,7 +1212,8 @@ const App = {
         
         const container = document.getElementById('rawFieldsContainer');
         if (container) {
-            const game = this.games[0];
+            // 重渲染当前弹窗对应的游戏(曾误用 games[0], 会在查看第 N 个游戏时把字段值全替换成第 1 个的)
+            const game = (typeof this._editModalIndex === 'number') ? this.games[this._editModalIndex] : this.games[0];
             if (game) {
                 const newHtml = fields.map((k, i) => {
                     const v = String(game.privateData?.[k] || game._rawData[k] || '');
