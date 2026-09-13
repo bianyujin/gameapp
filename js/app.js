@@ -302,10 +302,11 @@ const App = {
 
     async autoSync() {
         try {
-            // 默认开启自动同步；仅当用户显式关闭（存储值为 'false'）时才跳过
-            const autoSyncDisabled = Storage.getItem('gamehub_auto_sync_enabled') === 'false';
-            if (autoSyncDisabled) {
-                console.log('自动同步已关闭，使用缓存数据');
+            // 自动同步默认关闭：仅当用户在"我的"里显式开启（存储值为 'true'）时才执行，
+            // 与开关显示保持一致（2026-09-13 用户要求默认关）
+            const autoSyncEnabled = Storage.getItem('gamehub_auto_sync_enabled') === 'true';
+            if (!autoSyncEnabled) {
+                console.log('自动同步未开启，使用缓存数据');
                 return;
             }
 
