@@ -1673,7 +1673,7 @@ const App = {
             <div class="game-card" data-index="${gameIndex}" onclick="App.editGameByIndex(${gameIndex})"${isPinned ? ' style="border-left:3px solid #f59e0b;"' : ''}>
                 <div class="game-cover ${coverClass}" style="background: ${gradient};">
                     ${coverUrl
-                        ? `<img class="cover-img" src="${coverUrl}" alt="" loading="lazy" onerror="this.style.display='none';this.parentElement.classList.remove('cover-loading');this.parentElement.classList.add('cover-noimage');" /><span style="display:none;">${typeIcon}</span>`
+                        ? `<img class="cover-img" src="${coverUrl}" data-orig="${this.escapeHtml(coverUrl)}" alt="" loading="lazy" onerror="App.coverFallback(this)" /><span style="display:none;">${typeIcon}</span>`
                         : `<span>${typeIcon}</span>`
                     }
                 </div>
@@ -1747,7 +1747,7 @@ const App = {
             <div class="game-card" onclick="App.showCollectionItem(${realIndex})"${isPinned ? ' style="border-left:3px solid #f59e0b;"' : ''}>
                 <div class="game-cover ${coverClass}" style="background: ${gradient};">
                     ${coverUrl
-                        ? `<img class="cover-img" src="${coverUrl}" alt="" loading="lazy" onerror="this.style.display='none';this.parentElement.classList.add('cover-noimage');" /><span style="display:none;">${typeIcon}</span>`
+                        ? `<img class="cover-img" src="${coverUrl}" data-orig="${this.escapeHtml(coverUrl)}" alt="" loading="lazy" onerror="App.coverFallback(this)" /><span style="display:none;">${typeIcon}</span>`
                         : `<span>${typeIcon}</span>`
                     }
                 </div>
@@ -2172,16 +2172,58 @@ const App = {
             // 优先用预提取的 coverUrls
             const urls = game.coverUrls;
             if (urls && Array.isArray(urls) && urls.length > 0) {
-                return urls[Math.floor(Math.random() * urls.length)];
+                return this.maybeProxyCover(urls[Math.floor(Math.random() * urls.length)]);
             }
             // coverUrls 为空时，从预览字段直接提取图片URL
             const preview = this.getPreviewUrl(game);
             if (preview) {
                 const direct = this.extractDirectImageUrls(preview);
-                if (direct.length > 0) return direct[0];
+                if (direct.length > 0) return this.maybeProxyCover(direct[0]);
             }
             return null;
         } catch(e) { return null; }
+    },
+
+    proxyCoverUrl(url) {
+        return '/api/preview?url=' + encodeURIComponent(url) + '&w=800&fmt=webp&q=80';
+    },
+
+    // 图床域名在国内直连不通，这台设备一旦失败过就记 7 天，之后封面直接走站点代理，
+    // 不再让每张图都先白试一次必然失败的直连
+    _coverViaProxy() {
+        try {
+            const t = parseInt(Storage.getItem('gamehub_cover_via_proxy') || '0', 10);
+            return t > 0 && (Date.now() - t) < 7 * 86400000;
+        } catch(e) { return false; }
+    },
+
+    maybeProxyCover(url) {
+        if (!url) return url;
+        // 已经是代理地址或同源资源就不用再包一层
+        if (url.indexOf('/api/preview') === 0 || url.indexOf('gameapp-2e8.pages.dev') >= 0) return url;
+        return this._coverViaProxy() ? this.proxyCoverUrl(url) : url;
+    },
+
+    /**
+     * 封面加载失败兜底：图床 image.acg.lol 与 wsrv/weserv 在国内都会被重置，
+     * 而站点自己的 /api/preview 是同源、国内可达的。所以失败时不要直接放弃，
+     * 换成站点代理再试一次（服务端会压成 800px webp，顺带省流量）。
+     * 这样老版本 App 不必升级也能出图；新版本 App 由原生拦截器直接命中，不会走到这里。
+     */
+    coverFallback(img) {
+        const orig = img.getAttribute('data-orig');
+        if (!orig || img.dataset.fb === '1') return this._markCoverFailed(img);
+        img.dataset.fb = '1';
+        try { Storage.setItem('gamehub_cover_via_proxy', String(Date.now())); } catch(e) {}
+        img.src = this.proxyCoverUrl(orig);
+    },
+
+    _markCoverFailed(img) {
+        img.style.display = 'none';
+        const box = img.parentElement;
+        if (!box) return;
+        box.classList.remove('cover-loading');
+        box.classList.add('cover-noimage');
     },
 
     _coverResolving: new Set(),
