@@ -48,6 +48,8 @@ const AdminSystem = {
                             <label class="form-label">管理员密码</label>
                             <input type="password" id="adminPassword" class="form-input" placeholder="请输入管理员密码">
                         </div>
+                        <p class="form-hint">密码在 Cloudflare Pages 环境变量 ADMIN_KEY 里。忘了密码又只想改置顶，可以点下面用站长码单独进置顶管理。</p>
+                        <button class="btn btn-secondary" style="width:100%;margin-top:4px;" onclick="AdminSystem.openPinOnly()">📌 只用置顶管理（站长码）</button>
                     </div>
                     <div class="modal-footer">
                         <button class="btn btn-secondary" onclick="AdminSystem.closeAdminLogin()">取消</button>
@@ -62,6 +64,18 @@ const AdminSystem = {
     closeAdminLogin() {
         const modal = document.getElementById('adminLoginModal');
         if (modal) modal.remove();
+    },
+
+    // 只开置顶管理（忘了管理员密码时用站长码兜底）
+    openPinOnly() {
+        this.closeAdminLogin();
+        App.openPinManager('games');
+    },
+
+    // 从管理员面板进置顶管理
+    openPinManager(kind) {
+        this.closeAdminPanel();
+        App.openPinManager(kind || 'games');
     },
 
     async doLogin() {
@@ -90,7 +104,11 @@ const AdminSystem = {
             App.showToast('✅ 管理员登录成功（已载入' + n + '条私有数据）');
             location.reload();
         } catch(e) {
-            App.showToast('❌ ' + e.message);
+            const m = e.message || '';
+            // 503 = 服务端没配 ADMIN_KEY，提示要具体到操作路径，否则容易被当成"密码忘了"
+            App.showToast(m.includes('未配置管理员密钥')
+                ? '❌ 服务端没配 ADMIN_KEY：Cloudflare → gameapp → Settings → Environment variables 加 ADMIN_KEY（Production+Preview 都加），再 Retry deployment。值见本地 README.md'
+                : ('❌ ' + m));
         } finally {
             if (btn) btn.disabled = false;
         }
@@ -132,8 +150,16 @@ const AdminSystem = {
                                 <button class="btn btn-secondary" onclick="App.addNewGame()">添加游戏</button>
                                 <button class="btn btn-secondary" onclick="AdminSystem.exportAllData()">导出所有数据</button>
                                 <button class="btn btn-secondary" onclick="AdminSystem.openImportModal()">批量导入</button>
-                                <button class="btn btn-primary" onclick="CloudSync.syncNotionToFirebase()">从Notion导入到Firebase</button>
                             </div>
+                        </div>
+
+                        <div class="admin-section">
+                            <h4>站点运营（全站生效）</h4>
+                            <div class="admin-actions">
+                                <button class="btn btn-secondary" onclick="AdminSystem.openPinManager('games')">📌 数据页置顶</button>
+                                <button class="btn btn-secondary" onclick="AdminSystem.openPinManager('collections')">📌 合集页置顶</button>
+                            </div>
+                            <p class="form-hint">置顶是所有人都能看到的，改完要提交仓库 pinned.json 才会全站生效</p>
                         </div>
 
                         <div class="admin-section">

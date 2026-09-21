@@ -25,7 +25,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
+const { execSync, spawnSync } = require('child_process');
 const readline = require('readline');
 
 const ROOT = __dirname;
@@ -414,8 +414,10 @@ async function main() {
     console.log('\n正在提交...');
     try {
         execSync('git add games.json config.json', { cwd: ROOT, stdio: 'pipe' });
-        const diff = execSync('git diff --cached --quiet games.json', { cwd: ROOT }).toString().trim();
-        if (diff === '') {
+        // --quiet 有差异时 exit 1，execSync 会直接抛异常，必须用 spawnSync 按退出码判断
+        const diffCheck = spawnSync('git', ['diff', '--cached', '--quiet', 'games.json'], { cwd: ROOT });
+        const hasChanges = diffCheck.status === 1;
+        if (!hasChanges) {
             console.log('数据无变化，跳过提交');
         } else {
             execSync(`git commit -m "update: 数据更新 ${new Date().toISOString().split('T')[0]}"`, { cwd: ROOT, stdio: 'pipe' });

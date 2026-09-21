@@ -4,3 +4,4 @@ games-full.json
 .DS_Store
 _backup/
 csv-input/*.csv
+.mimosa/

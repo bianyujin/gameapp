@@ -45,7 +45,7 @@ const CloudSync = {
     },
 
     bindEvents() {
-        window.addEventListener('online', () => { this.config.autoSync && this.sync(); });
+        window.addEventListener('online', () => { this.config.autoSync && this.syncFromCloud(); });
     },
 
     getProxyUrl(t) {
@@ -151,8 +151,8 @@ const CloudSync = {
 
     // 后台顺序预载全部详情分块：之后点任意游戏卡片都能秒开完整详情
     async preloadFullChunks() {
-        if (!this.games.length || !this.games[0]._lite) return;
-        const maxC = Math.max(...this.games.map(g => typeof g._chunk === 'number' ? g._chunk : 0));
+        if (!App.games.length || !App.games[0]._lite) return;
+        const maxC = Math.max(...App.games.map(g => typeof g._chunk === 'number' ? g._chunk : 0));
         const base = (this.config.gamesDataUrl || '').replace(/games\.json(\?.*)?$/, '');
         for (let i = 0; i <= maxC; i++) {
             if (this._chunkCache.has(i)) continue;

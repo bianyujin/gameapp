@@ -1,0 +1,5 @@
+{
+  "games": [],
+  "collections": [],
+  "_note": "置顶配置：games 控制数据页置顶，collections 控制合集页置顶。填条目的 id（数字，推荐，稳定）或文件ID（字符串，如 BAYJRPG116），数组顺序就是置顶顺序。改完 push 约 1 分钟全站生效（App 与网页都生效）。"
+}

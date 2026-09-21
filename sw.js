@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gameacg-v8';
+const CACHE_NAME = 'gameacg-v9';
 
 const APP_SHELL = [
   '/',
@@ -25,6 +25,7 @@ function isDataFile(url) {
     pathname.endsWith('/games-lite.json') ||
     pathname.startsWith('/games-full/') ||
     pathname.endsWith('/collections.json') ||
+    pathname.endsWith('/pinned.json') ||
     pathname.endsWith('/config.json') ||
     
     

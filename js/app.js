@@ -131,16 +131,22 @@ const App = {
     carouselIndex: 0,
     carouselInterval: null,
     nextId: 51,
+    // 置顶配置（站点级 pinned.json，站长改动全站生效）
+    pinned: { games: [], collections: [] },
+    pinUnlocked: false,
+    pinKind: 'games',
 
     async init() {
         console.log(`[GAMEACG] v${APP_VERSION} 初始化 | Storage: ${Storage._type}`);
         try { this.isAdmin = Storage.getItem('gamehub_is_admin') === 'true'; } catch(e) { this.isAdmin = false; }
+        try { this.pinUnlocked = Storage.getItem('gamehub_pin_unlocked') === 'true'; } catch(e) { this.pinUnlocked = false; }
         try { this.loadDarkMode(); } catch(e) {}
         try {
             const savedOrder = Storage.getItem('gamehub_field_order');
             if (savedOrder) this.globalFields = JSON.parse(savedOrder);
         } catch(e) {}
         await this.loadData();
+        await this.loadPinned();
         this.loadCollections();
         this.bindEvents();
         this.render();
@@ -818,7 +824,8 @@ const App = {
             });
         }
 
-        return games;
+        // 置顶项提到最前（只在过滤结果内生效，不额外插入被筛掉的条目）
+        return this.sortPinnedFirst(games, 'games');
     },
 
     updateProfileCounts() {
@@ -1659,9 +1666,11 @@ const App = {
             const gradient = this.getTypeGradient(type);
             const typeIcon = this.getGameTypeIcon(type);
             const coverClass = coverUrl ? '' : 'cover-noimage';
+            const pinIdx = this.pinRank(game, 'games');
+            const isPinned = pinIdx >= 0;
 
             return `
-            <div class="game-card" data-index="${gameIndex}" onclick="App.editGameByIndex(${gameIndex})">
+            <div class="game-card" data-index="${gameIndex}" onclick="App.editGameByIndex(${gameIndex})"${isPinned ? ' style="border-left:3px solid #f59e0b;"' : ''}>
                 <div class="game-cover ${coverClass}" style="background: ${gradient};">
                     ${coverUrl
                         ? `<img class="cover-img" src="${coverUrl}" alt="" loading="lazy" onerror="this.style.display='none';this.parentElement.classList.remove('cover-loading');this.parentElement.classList.add('cover-noimage');" /><span style="display:none;">${typeIcon}</span>`
@@ -1669,7 +1678,7 @@ const App = {
                     }
                 </div>
                 <div class="game-info">
-                    <div class="game-title">${this.escapeHtml(game.title || '未命名')}</div>
+                    <div class="game-title">${isPinned ? '<span style="font-size:10px;color:#f59e0b;background:#f59e0b20;padding:1px 5px;border-radius:3px;margin-right:4px;vertical-align:middle;">📌 置顶</span>' : ''}${this.escapeHtml(game.title || '未命名')}</div>
                     <div class="game-meta">
                         <span class="game-category">${this.escapeHtml(game.category || '其他')}</span>
                         <span class="game-rating">${this.getGradeDisplay(game) || ((game.rating && game.rating > 0) ? '⭐ ' + game.rating : '？')}</span>
@@ -1715,6 +1724,9 @@ const App = {
             });
         }
 
+        // 置顶项提到最前
+        list = this.sortPinnedFirst(list, 'collections');
+
         if (list.length === 0) {
             body.innerHTML = '<div style="text-align:center;color:#64748b;padding:40px;">暂无合集数据</div>';
             const info = document.getElementById('collectionsInfo');
@@ -1729,8 +1741,10 @@ const App = {
             const typeIcon = this.getGameTypeIcon(type);
             const coverClass = coverUrl ? '' : 'cover-noimage';
             const realIndex = this.collections.indexOf(game);
+            const pinIdx = this.pinRank(game, 'collections');
+            const isPinned = pinIdx >= 0;
             return `
-            <div class="game-card" onclick="App.showCollectionItem(${realIndex})">
+            <div class="game-card" onclick="App.showCollectionItem(${realIndex})"${isPinned ? ' style="border-left:3px solid #f59e0b;"' : ''}>
                 <div class="game-cover ${coverClass}" style="background: ${gradient};">
                     ${coverUrl
                         ? `<img class="cover-img" src="${coverUrl}" alt="" loading="lazy" onerror="this.style.display='none';this.parentElement.classList.add('cover-noimage');" /><span style="display:none;">${typeIcon}</span>`
@@ -1738,7 +1752,7 @@ const App = {
                     }
                 </div>
                 <div class="game-info">
-                    <div class="game-title">${this.escapeHtml(game.title || '未命名')}</div>
+                    <div class="game-title">${isPinned ? '<span style="font-size:10px;color:#f59e0b;background:#f59e0b20;padding:1px 5px;border-radius:3px;margin-right:4px;vertical-align:middle;">📌 置顶</span>' : ''}${this.escapeHtml(game.title || '未命名')}</div>
                     <div class="game-meta">
                         <span class="game-category">${this.escapeHtml(game.category || '其他')}</span>
                         <span class="game-rating">${this.getGradeDisplay(game) || '？'}</span>
@@ -1756,6 +1770,259 @@ const App = {
         if (!game) return;
         this.addToHistory(game);
         this.openEditModal(game, -1);
+    },
+
+    // ========== 置顶功能（站点级 pinned.json）==========
+    // 站长码：写在前端，只防普通用户乱点，站长自己改这里即可
+    PIN_CODE: 'bayj2024',
+
+    async loadPinned() {
+        try {
+            const baseUrl = window.location.hostname === 'localhost' ? '' : 'https://gameapp-2e8.pages.dev';
+            const res = await fetch(baseUrl + '/pinned.json?t=' + Date.now(), { cache: 'no-cache' });
+            if (!res.ok) { console.log('[置顶] 未找到 pinned.json，按无置顶处理'); return; }
+            // CF Pages 对未知路径会 200 返回 index.html，必须嗅探内容
+            const txt = (await res.text()).trim();
+            if (!txt.startsWith('{')) { console.log('[置顶] 响应不是 JSON，忽略'); return; }
+            const data = JSON.parse(txt);
+            this.pinned.games = Array.isArray(data.games) ? data.games : [];
+            this.pinned.collections = Array.isArray(data.collections) ? data.collections : [];
+            console.log(`[置顶] 已加载: 数据页 ${this.pinned.games.length} 条 / 合集页 ${this.pinned.collections.length} 条`);
+        } catch(e) {
+            console.log('[置顶] 加载失败:', e.message);
+        }
+    },
+
+    // key 可以是数字 id，也可以是字符串（id 或 文件ID）
+    pinMatch(item, key) {
+        if (!item || key === undefined || key === null) return false;
+        if (typeof key === 'number') return Number(item.id) === Number(key);
+        const s = String(key).trim();
+        if (String(item.id) === s) return true;
+        const fid = item._rawData && item._rawData['文件ID'];
+        return !!(fid && String(fid) === s);
+    },
+
+    // 返回条目的置顶序号，-1 表示未置顶
+    pinRank(item, listName) {
+        const keys = this.pinned[listName] || [];
+        for (let i = 0; i < keys.length; i++) {
+            if (this.pinMatch(item, keys[i])) return i;
+        }
+        return -1;
+    },
+
+    // 置顶项按配置顺序排到最前，其余保持原有顺序（sort 稳定）
+    sortPinnedFirst(list, listName) {
+        const keys = this.pinned[listName];
+        if (!keys || keys.length === 0) return list;
+        return list.map(item => ({ item, r: this.pinRank(item, listName) }))
+            .sort((a, b) => {
+                if (a.r === -1 && b.r === -1) return 0;
+                if (a.r === -1) return 1;
+                if (b.r === -1) return -1;
+                return a.r - b.r;
+            })
+            .map(x => x.item);
+    },
+
+    // ========== 置顶管理面板（站长用）==========
+    openPinManager(kind) {
+        this.pinKind = (kind === 'collections') ? 'collections' : 'games';
+        if (this.isAdmin || this.pinUnlocked) { this.renderPinManager(); return; }
+        this.openPinLogin();
+    },
+
+    openPinLogin() {
+        const old = document.getElementById('pinLoginModal');
+        if (old) old.remove();
+        document.body.insertAdjacentHTML('beforeend', `
+            <div id="pinLoginModal" class="modal">
+                <div class="modal-backdrop" onclick="App.closePinLogin()"></div>
+                <div class="modal-content" style="max-width:360px;">
+                    <div class="modal-header">
+                        <h3 class="modal-title">📌 站长验证</h3>
+                        <button class="close-btn" onclick="App.closePinLogin()">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label class="form-label">站长码</label>
+                            <input type="password" id="pinCodeInput" class="form-input" placeholder="请输入站长码" onkeydown="if(event.key==='Enter')App.submitPinCode()">
+                        </div>
+                        <div style="font-size:12px;color:#64748b;line-height:1.6;">置顶是全站生效的运营配置，只有站长能改。</div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" onclick="App.closePinLogin()">取消</button>
+                        <button class="btn btn-primary" onclick="App.submitPinCode()">确定</button>
+                    </div>
+                </div>
+            </div>
+        `);
+    },
+
+    closePinLogin() { const m = document.getElementById('pinLoginModal'); if (m) m.remove(); },
+
+    submitPinCode() {
+        const el = document.getElementById('pinCodeInput');
+        const v = ((el && el.value) || '').trim();
+        if (v !== this.PIN_CODE) { this.showToast('❌ 站长码不对'); return; }
+        this.pinUnlocked = true;
+        try { Storage.setItem('gamehub_pin_unlocked', 'true'); } catch(e) {}
+        this.closePinLogin();
+        this.renderPinManager();
+    },
+
+    pinPool() { return this.pinKind === 'collections' ? this.collections : this.games; },
+
+    renderPinManager() {
+        const kind = this.pinKind;
+        const label = kind === 'collections' ? '合集页' : '数据页';
+        const keys = this.pinned[kind] || [];
+        const pool = this.pinPool();
+        const titleOf = (k) => {
+            const it = pool.find(x => this.pinMatch(x, k));
+            return it ? (it.title || '未命名') : ('❓ 未找到 ' + k);
+        };
+        const btn = 'background:#334155;color:#e2e8f0;border:none;border-radius:6px;padding:3px 7px;cursor:pointer;font-size:12px;';
+        const rows = keys.length ? keys.map((k, i) => `
+            <div style="display:flex;align-items:center;gap:6px;padding:7px 0;border-bottom:1px solid #334155;">
+                <span style="flex:1;font-size:13px;color:#e2e8f0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${i + 1}. ${this.escapeHtml(titleOf(k))}</span>
+                <span style="font-size:10px;color:#64748b;flex-shrink:0;">${this.escapeHtml(String(k))}</span>
+                <button style="${btn}" onclick="App.movePin(${i},-1)"${i === 0 ? ' disabled' : ''}>↑</button>
+                <button style="${btn}" onclick="App.movePin(${i},1)"${i === keys.length - 1 ? ' disabled' : ''}>↓</button>
+                <button style="${btn}" onclick="App.removePin(${i})">✕</button>
+            </div>`).join('')
+            : '<div style="padding:10px 0;color:#64748b;font-size:13px;">暂无置顶项，用下面搜索添加</div>';
+
+        const json = JSON.stringify({ games: this.pinned.games, collections: this.pinned.collections }, null, 2);
+
+        const old = document.getElementById('pinManagerModal');
+        if (old) old.remove();
+
+        document.body.insertAdjacentHTML('beforeend', `
+            <div id="pinManagerModal" class="modal">
+                <div class="modal-backdrop" onclick="App.closePinManager()"></div>
+                <div class="modal-content" style="max-width:430px;">
+                    <div class="modal-header">
+                        <h3 class="modal-title">📌 置顶管理 · ${label}</h3>
+                        <button class="close-btn" onclick="App.closePinManager()">&times;</button>
+                    </div>
+                    <div class="modal-body" style="max-height:62vh;overflow-y:auto;">
+                        <div style="display:flex;gap:6px;margin-bottom:10px;">
+                            <button class="btn ${kind === 'games' ? 'btn-primary' : 'btn-secondary'}" style="flex:1;padding:6px;font-size:12px;" onclick="App.switchPinKind('games')">数据页</button>
+                            <button class="btn ${kind === 'collections' ? 'btn-primary' : 'btn-secondary'}" style="flex:1;padding:6px;font-size:12px;" onclick="App.switchPinKind('collections')">合集页</button>
+                        </div>
+                        <div style="font-size:12px;color:#94a3b8;margin-bottom:4px;">当前置顶（按顺序）</div>
+                        <div id="pinList">${rows}</div>
+
+                        <div style="font-size:12px;color:#94a3b8;margin:12px 0 4px;">添加置顶</div>
+                        <input type="text" id="pinSearchInput" class="form-input" placeholder="搜索游戏名 / 文件ID" oninput="App.pinSearch(this.value)">
+                        <div id="pinSearchResults" style="margin-top:6px;max-height:180px;overflow-y:auto;"><div style="font-size:12px;color:#64748b;padding:6px;">输入关键词搜索</div></div>
+
+                        <div style="font-size:12px;color:#94a3b8;margin:12px 0 4px;">配置文件内容（复制后贴到仓库 pinned.json）</div>
+                        <textarea id="pinJsonPreview" class="form-textarea" readonly style="width:100%;height:130px;font-size:11px;">${this.escapeHtml(json)}</textarea>
+                        <div style="font-size:11px;color:#64748b;line-height:1.6;margin-top:6px;">
+                            改完要点下面的「打开 GitHub」把内容贴进 pinned.json 提交，约 1 分钟后所有人（含 App）生效。<br>
+                            「本机预览」只在你这台设备立刻看到效果，别人看不到。
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" onclick="App.applyPinLocal()">本机预览</button>
+                        <button class="btn btn-secondary" onclick="App.copyPinJson()">复制配置</button>
+                        <button class="btn btn-primary" onclick="App.openPinnedGithub()">打开 GitHub</button>
+                    </div>
+                </div>
+            </div>
+        `);
+    },
+
+    closePinManager() { const m = document.getElementById('pinManagerModal'); if (m) m.remove(); },
+
+    switchPinKind(kind) { this.pinKind = kind; this.renderPinManager(); },
+
+    pinSearch(q) {
+        const box = document.getElementById('pinSearchResults');
+        if (!box) return;
+        const s = (q || '').trim().toLowerCase();
+        if (!s) { box.innerHTML = '<div style="font-size:12px;color:#64748b;padding:6px;">输入关键词搜索</div>'; return; }
+        const pool = this.pinPool();
+        const hits = pool.filter(g =>
+            (g.title || '').toLowerCase().includes(s) ||
+            ((g._rawData && g._rawData['文件ID']) || '').toLowerCase().includes(s)
+        ).slice(0, 20);
+        if (!hits.length) { box.innerHTML = '<div style="font-size:12px;color:#64748b;padding:6px;">没有匹配的条目</div>'; return; }
+        box.innerHTML = hits.map(g => {
+            const idx = pool.indexOf(g);
+            const pinned = this.pinRank(g, this.pinKind) >= 0;
+            const fid = (g._rawData && g._rawData['文件ID']) || '';
+            return `<div style="padding:7px 0;border-bottom:1px solid #334155;display:flex;align-items:center;gap:6px;">
+                <span style="flex:1;font-size:12px;color:#e2e8f0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${this.escapeHtml(g.title || '未命名')}${fid ? ' <span style="color:#64748b;">' + this.escapeHtml(fid) + '</span>' : ''}</span>
+                <button style="background:${pinned ? '#475569' : '#334155'};color:#e2e8f0;border:none;border-radius:6px;padding:3px 7px;cursor:pointer;font-size:12px;" onclick="App.addPinByIndex(${idx})">${pinned ? '已置顶' : '置顶'}</button>
+            </div>`;
+        }).join('');
+    },
+
+    addPinByIndex(idx) {
+        const pool = this.pinPool();
+        const item = pool[idx];
+        if (!item) return;
+        const kind = this.pinKind;
+        if (this.pinRank(item, kind) >= 0) { this.showToast('已经在置顶列表里了'); return; }
+        const key = (item.id !== undefined && item.id !== null) ? item.id : ((item._rawData && item._rawData['文件ID']) || item.title);
+        this.pinned[kind].push(key);
+        this.showToast('已加入置顶，记得同步到 GitHub');
+        this.renderPinManager();
+    },
+
+    removePin(i) {
+        const kind = this.pinKind;
+        if (!this.pinned[kind] || i < 0 || i >= this.pinned[kind].length) return;
+        this.pinned[kind].splice(i, 1);
+        this.renderPinManager();
+    },
+
+    movePin(i, dir) {
+        const kind = this.pinKind;
+        const arr = this.pinned[kind];
+        const j = i + dir;
+        if (!arr || j < 0 || j >= arr.length) return;
+        const tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp;
+        this.renderPinManager();
+    },
+
+    copyPinJson() {
+        const text = JSON.stringify({ games: this.pinned.games, collections: this.pinned.collections }, null, 2);
+        const done = () => this.showToast('✅ 配置已复制，去 GitHub 粘贴覆盖即可');
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(done).catch(() => this._copyPinFallback(text, done));
+        } else {
+            this._copyPinFallback(text, done);
+        }
+    },
+
+    _copyPinFallback(text, done) {
+        try {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+            done();
+        } catch(e) { this.showToast('复制失败，请手动选中文本框内容'); }
+    },
+
+    openPinnedGithub() {
+        this.copyPinJson();
+        const url = 'https://github.com/bianyujin/gameapp/edit/main/pinned.json';
+        try { window.open(url, '_blank'); } catch(e) {}
+        this.showToast('配置已复制，粘贴覆盖后 Commit 即可');
+    },
+
+    applyPinLocal() {
+        if (this.currentPage === 'collections') this.renderCollections();
+        else this.renderTable();
+        this.showToast('已在本机预览（别人要等你同步 GitHub）');
     },
 
     // ========== 封面图懒加载 ==========
