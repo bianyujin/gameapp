@@ -30,7 +30,8 @@ function isDataFile(url) {
     
     
     // 管理员私有数据接口绝不能走缓存，防止缓存旧数据或缓存错误状态
-    pathname.startsWith('/api/private-data');
+    pathname.startsWith('/api/private-data') ||
+    pathname.startsWith('/api/pinned');
 }
 
 self.addEventListener('install', event => {

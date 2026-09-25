@@ -1919,17 +1919,18 @@ const App = {
                         <input type="text" id="pinSearchInput" class="form-input" placeholder="搜索游戏名 / 文件ID" oninput="App.pinSearch(this.value)">
                         <div id="pinSearchResults" style="margin-top:6px;max-height:180px;overflow-y:auto;"><div style="font-size:12px;color:#64748b;padding:6px;">输入关键词搜索</div></div>
 
-                        <div style="font-size:12px;color:#94a3b8;margin:12px 0 4px;">配置文件内容（复制后贴到仓库 pinned.json）</div>
+                        <div style="font-size:12px;color:#94a3b8;margin:12px 0 4px;">配置文件内容（备用：复制后贴到仓库 pinned.json）</div>
                         <textarea id="pinJsonPreview" class="form-textarea" readonly style="width:100%;height:130px;font-size:11px;">${this.escapeHtml(json)}</textarea>
                         <div style="font-size:11px;color:#64748b;line-height:1.6;margin-top:6px;">
-                            改完要点下面的「打开 GitHub」把内容贴进 pinned.json 提交，约 1 分钟后所有人（含 App）生效。<br>
+                            点「提交并全站生效」输入管理员密码即可，不用上 GitHub，约 1 分钟后所有人（含 App）生效。<br>
                             「本机预览」只在你这台设备立刻看到效果，别人看不到。
                         </div>
                     </div>
-                    <div class="modal-footer">
+                    <div class="modal-footer" style="flex-wrap:wrap;gap:6px;">
+                        <button class="btn btn-primary" style="flex-basis:100%;" onclick="App.openPinSubmit()">🚀 提交并全站生效</button>
                         <button class="btn btn-secondary" onclick="App.applyPinLocal()">本机预览</button>
                         <button class="btn btn-secondary" onclick="App.copyPinJson()">复制配置</button>
-                        <button class="btn btn-primary" onclick="App.openPinnedGithub()">打开 GitHub</button>
+                        <button class="btn btn-secondary" onclick="App.openPinnedGithub()">打开 GitHub</button>
                     </div>
                 </div>
             </div>
@@ -1970,7 +1971,7 @@ const App = {
         if (this.pinRank(item, kind) >= 0) { this.showToast('已经在置顶列表里了'); return; }
         const key = (item.id !== undefined && item.id !== null) ? item.id : ((item._rawData && item._rawData['文件ID']) || item.title);
         this.pinned[kind].push(key);
-        this.showToast('已加入置顶，记得同步到 GitHub');
+        this.showToast('已加入置顶，点「提交并全站生效」后所有人可见');
         this.renderPinManager();
     },
 
@@ -2022,7 +2023,63 @@ const App = {
     applyPinLocal() {
         if (this.currentPage === 'collections') this.renderCollections();
         else this.renderTable();
-        this.showToast('已在本机预览（别人要等你同步 GitHub）');
+        this.showToast('已在本机预览（别人要等你提交仓库）');
+    },
+
+    // 手机/网页直接提交置顶到仓库（走 /api/pinned：服务端校验管理员密码后替你 commit pinned.json）
+    openPinSubmit() {
+        const old = document.getElementById('pinSubmitModal');
+        if (old) old.remove();
+        document.body.insertAdjacentHTML('beforeend', `
+            <div id="pinSubmitModal" class="modal">
+                <div class="modal-backdrop" onclick="App.closePinSubmit()"></div>
+                <div class="modal-content" style="max-width:360px;">
+                    <div class="modal-header">
+                        <h3 class="modal-title">🚀 提交并全站生效</h3>
+                        <button class="close-btn" onclick="App.closePinSubmit()">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label class="form-label">管理员密码</label>
+                            <input type="password" id="pinSubmitKey" class="form-input" placeholder="输入管理员密码" onkeydown="if(event.key==='Enter')App.doPinSubmit()">
+                        </div>
+                        <div style="font-size:12px;color:#64748b;line-height:1.6;">提交后由站点服务端替你写入仓库 pinned.json，约 1 分钟后所有人（含 App）生效。密码只在本次请求中使用，不做任何保存。</div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" onclick="App.closePinSubmit()">取消</button>
+                        <button class="btn btn-primary" onclick="App.doPinSubmit()">提交</button>
+                    </div>
+                </div>
+            </div>
+        `);
+    },
+
+    closePinSubmit() { const m = document.getElementById('pinSubmitModal'); if (m) m.remove(); },
+
+    async doPinSubmit() {
+        const el = document.getElementById('pinSubmitKey');
+        const key = ((el && el.value) || '').trim();
+        if (!key) { this.showToast('请输入管理员密码'); return; }
+        const btn = document.querySelector('#pinSubmitModal .btn-primary');
+        if (btn) { btn.disabled = true; btn.textContent = '提交中…'; }
+        try {
+            const res = await fetch('/api/pinned', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Admin-Key': key },
+                body: JSON.stringify({ games: this.pinned.games, collections: this.pinned.collections })
+            });
+            const data = await res.json().catch(() => ({}));
+            if (res.ok && data.ok) {
+                this.closePinSubmit();
+                this.showToast('✅ 已提交，约 1 分钟后全站生效');
+            } else {
+                this.showToast('❌ ' + (data.error || ('提交失败（' + res.status + '）')));
+                if (btn) { btn.disabled = false; btn.textContent = '提交'; }
+            }
+        } catch (e) {
+            this.showToast('❌ 网络异常：' + e.message);
+            if (btn) { btn.disabled = false; btn.textContent = '提交'; }
+        }
     },
 
     // ========== 封面图懒加载 ==========
