@@ -90,7 +90,7 @@ export async function onRequestPost(context) {
         if (res.ok) {
             const cur = await res.json();
             sha = cur.sha;
-            try { note = (JSON.parse(atob((cur.content || '').replace(/\n/g, ''))) || {})._note || ''; } catch (e) {}
+            try { note = (JSON.parse(decodeURIComponent(escape(atob((cur.content || '').replace(/\n/g, ''))))) || {})._note || ''; } catch (e) {}
         } else if (res.status !== 404) {
             return json({ error: '读取仓库 pinned.json 失败：GitHub 返回 ' + res.status }, 502);
         }

@@ -5,3 +5,4 @@ games-full.json
 _backup/
 csv-input/*.csv
 .mimosa/
+.wrangler/
