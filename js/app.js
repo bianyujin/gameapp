@@ -228,8 +228,8 @@ const App = {
         '74d8a211c287d4ce06de319d1e3d580b.jpg',
         '7efc20410679c941fe6fee58f6e4c5ea-512x512.jpg',
         '8a81afeb875865f83af9f6a650706f6f-512x512.jpg',
-        'b46f54c4376ef0697fd533215ea55a94.gif',
-        'bdeeaac869a7edb5aaf260a10725528e.gif',
+        'b46f54c4376ef0697fd533215ea55a94.webp',
+        'bdeeaac869a7edb5aaf260a10725528e.webp',
         'chibaifandemao.jpg',
         'fce0bfa5bf7e70bfc7e2e3c79c91a24b.jpg',
         'laopo.jpg',
@@ -242,6 +242,11 @@ const App = {
         if (!img) return;
         let saved = null;
         try { saved = Storage.getItem('gamehub_avatar'); } catch(e) {}
+        if (saved && saved.endsWith('.gif')) {
+            // 旧存档指向已下线的 GIF，迁移到对应 WebP
+            saved = saved.slice(0, -4) + '.webp';
+            try { Storage.setItem('gamehub_avatar', saved); } catch(e) {}
+        }
         const file = saved || this._avatarFiles[Math.floor(Math.random() * this._avatarFiles.length)];
         img.src = 'avatars/' + file;
         img.onerror = () => { img.src = 'avatars/laopo.jpg'; };
