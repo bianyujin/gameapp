@@ -4,6 +4,7 @@
 //   2. 私有数据在仓库中是 AES-256-GCM 密文（同步脚本用 SHA-256(ADMIN_KEY) 派生密钥加密），
 //      这里解密后才返回，即使仓库公开也拿不到明文。
 import encrypted from '../_data/private-data.json';
+import { checkLock, recordFail, clearFails, lockedResponse } from './_ratelimit.js';
 
 function json(body, status) {
     return new Response(JSON.stringify(body), {
@@ -40,9 +41,14 @@ export async function onRequestGet(context) {
     }
     let key = '';
     try { key = request.headers.get('X-Admin-Key') || ''; } catch (e) { key = ''; }
+    // 暴力破解防护：同一 IP 连错 5 次锁 1 小时（KV 未绑定时自动降级为不限流）
+    const lock = await checkLock(request, env);
+    if (lock.blocked) return lockedResponse(lock.retryAfterSec);
     if (!key || key !== ADMIN_KEY) {
+        await recordFail(request, env);
         return json({ error: '密码错误' }, 403);
     }
+    await clearFails(request, env);
     if (!encrypted || !encrypted.data || !encrypted.iv) {
         return json({ error: '私有数据文件缺失' }, 500);
     }

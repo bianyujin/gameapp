@@ -8,6 +8,7 @@
 //   GITHUB_TOKEN 有 gameapp 仓库 Contents 读写权限的令牌（服务端专用，绝不进前端）
 const REPO = 'bianyujin/gameapp';
 const FILE_PATH = 'pinned.json';
+import { checkLock, recordFail, clearFails, lockedResponse } from './_ratelimit.js';
 
 function json(body, status) {
     return new Response(JSON.stringify(body), {
@@ -44,7 +45,14 @@ export async function onRequestGet(context) {
     }
     let key = '';
     try { key = context.request.headers.get('X-Admin-Key') || ''; } catch (e) { key = ''; }
-    if (key !== adminKeyOf(env)) return json({ error: '密码错误' }, 403);
+    // 暴力破解防护：同一 IP 连错 5 次锁 1 小时
+    const lock = await checkLock(context.request, env);
+    if (lock.blocked) return lockedResponse(lock.retryAfterSec);
+    if (key !== adminKeyOf(env)) {
+        await recordFail(context.request, env);
+        return json({ error: '密码错误' }, 403);
+    }
+    await clearFails(context.request, env);
 
     let config;
     try {
@@ -68,7 +76,14 @@ export async function onRequestPost(context) {
     }
     let key = '';
     try { key = request.headers.get('X-Admin-Key') || ''; } catch (e) { key = ''; }
-    if (!key || key !== ADMIN_KEY) return json({ error: '密码错误' }, 403);
+    // 暴力破解防护：同一 IP 连错 5 次锁 1 小时
+    const lock = await checkLock(request, env);
+    if (lock.blocked) return lockedResponse(lock.retryAfterSec);
+    if (!key || key !== ADMIN_KEY) {
+        await recordFail(request, env);
+        return json({ error: '密码错误' }, 403);
+    }
+    await clearFails(request, env);
 
     let body;
     try { body = await request.json(); } catch (e) { return json({ error: '请求体不是合法 JSON' }, 400); }
