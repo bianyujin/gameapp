@@ -81,7 +81,21 @@ const IDBCache = {
     }
 };
 
-const APP_VERSION = '2.34';
+const APP_VERSION = '2.35';
+
+// ========== 通用工具：防抖 + 带超时的 fetch ==========
+function debounce(fn, wait) {
+    let t = null;
+    return function(...args) {
+        if (t) clearTimeout(t);
+        t = setTimeout(() => fn.apply(this, args), wait);
+    };
+}
+function fetchWithTimeout(url, options = {}, timeoutMs = 10000) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+    return fetch(url, Object.assign({}, options, { signal: ctrl.signal })).finally(() => clearTimeout(timer));
+}
 
 // ========== 全局错误监控 ==========
 window.__errors = [];
@@ -621,19 +635,19 @@ const App = {
 
         const tableSearch = document.getElementById('tableSearch');
         if (tableSearch) {
-            tableSearch.addEventListener('input', (e) => {
+            tableSearch.addEventListener('input', debounce((e) => {
                 this.tableState.searchQuery = e.target.value;
                 this.tableState.currentPage = 1;
                 this.renderTable();
-            });
+            }, 150));
         }
 
         const collectionsSearch = document.getElementById('collectionsSearch');
         if (collectionsSearch) {
-            collectionsSearch.addEventListener('input', (e) => {
+            collectionsSearch.addEventListener('input', debounce((e) => {
                 this.collectionsSearch = e.target.value;
                 this.renderCollections();
-            });
+            }, 150));
         }
 
         const filterBtn = document.getElementById('filterBtn');
@@ -652,9 +666,9 @@ const App = {
 
         const homeSearch = document.getElementById('homeSearch');
         if (homeSearch) {
-            homeSearch.addEventListener('input', (e) => {
+            homeSearch.addEventListener('input', debounce((e) => {
                 this.renderHomeGames(e.target.value);
-            });
+            }, 150));
         }
 
         const clearCacheBtn = document.getElementById('clearCacheBtn');
@@ -1114,7 +1128,7 @@ const App = {
                         ${(() => {
                             const coverUrl = this.getGameCoverUrl(game);
                             if (coverUrl) {
-                                return `<div style="margin-bottom:16px;border-radius:12px;overflow:hidden;max-height:300px;"><img src="${coverUrl}" style="width:100%;height:auto;object-fit:cover;display:block;" onerror="this.parentElement.style.display='none'" /></div>`;
+                                return `<div style="margin-bottom:16px;border-radius:12px;overflow:hidden;max-height:300px;"><img src="${coverUrl}" style="width:100%;height:auto;object-fit:cover;display:block;" loading="lazy" decoding="async" onerror="this.parentElement.style.display='none'" /></div>`;
                             }
                             return '';
                         })()}
@@ -1664,8 +1678,12 @@ const App = {
             return;
         }
 
-        tbody.innerHTML = games.map((game, index) => {
-            const gameIndex = this.games.indexOf(game);
+        // id -> 下标映射，替代每卡 indexOf 的 O(n^2)（对象重复时保留首现）
+        const gameIndexMap = new Map();
+        this.games.forEach((g, i) => { if (!gameIndexMap.has(g)) gameIndexMap.set(g, i); });
+
+        tbody.innerHTML = games.map((game) => {
+            const gameIndex = gameIndexMap.get(game);
             const type = this.extractGameType(game.title || '') || this.extractGameType(game.category || '');
             const coverUrl = this.getGameCoverUrl(game);
             const gradient = this.getTypeGradient(type);
@@ -1705,7 +1723,7 @@ const App = {
         try {
             const baseUrl = window.location.hostname === 'localhost' ? '' : 'https://gameapp-2e8.pages.dev';
             const url = baseUrl + '/collections.json';
-            const res = await fetch(url);
+            const res = await fetchWithTimeout(url, {}, 20000);
             if (!res.ok) { console.log('合集数据加载失败:', res.status); return; }
             this.collections = await res.json();
             console.log('合集数据已加载:', this.collections.length + ' 条');
@@ -1739,13 +1757,17 @@ const App = {
             return;
         }
 
-        body.innerHTML = list.map((game, index) => {
+        // id -> 下标映射，替代每卡 indexOf 的 O(n^2)（对象重复时保留首现）
+        const colIndex = new Map();
+        this.collections.forEach((g, i) => { if (!colIndex.has(g)) colIndex.set(g, i); });
+
+        body.innerHTML = list.map((game) => {
             const coverUrl = this.getGameCoverUrl(game);
             const type = this.extractGameType(game.title || '') || this.extractGameType(game.category || '');
             const gradient = this.getTypeGradient(type);
             const typeIcon = this.getGameTypeIcon(type);
             const coverClass = coverUrl ? '' : 'cover-noimage';
-            const realIndex = this.collections.indexOf(game);
+            const realIndex = colIndex.get(game);
             const pinIdx = this.pinRank(game, 'collections');
             const isPinned = pinIdx >= 0;
             return `
@@ -1784,7 +1806,7 @@ const App = {
     async loadPinned() {
         try {
             const baseUrl = window.location.hostname === 'localhost' ? '' : 'https://gameapp-2e8.pages.dev';
-            const res = await fetch(baseUrl + '/pinned.json?t=' + Date.now(), { cache: 'no-cache' });
+            const res = await fetchWithTimeout(baseUrl + '/pinned.json?t=' + Date.now(), { cache: 'no-cache' }, 10000);
             if (!res.ok) { console.log('[置顶] 未找到 pinned.json，按无置顶处理'); return; }
             // CF Pages 对未知路径会 200 返回 index.html，必须嗅探内容
             const txt = (await res.text()).trim();
@@ -2068,11 +2090,11 @@ const App = {
         const btn = document.querySelector('#pinSubmitModal .btn-primary');
         if (btn) { btn.disabled = true; btn.textContent = '提交中…'; }
         try {
-            const res = await fetch('/api/pinned', {
+            const res = await fetchWithTimeout('/api/pinned', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-Admin-Key': key },
                 body: JSON.stringify({ games: this.pinned.games, collections: this.pinned.collections })
-            });
+            }, 30000);
             const data = await res.json().catch(() => ({}));
             if (res.ok && data.ok) {
                 this.closePinSubmit();
@@ -2876,23 +2898,22 @@ const App = {
     async checkForUpdates() {
         const githubUrl = 'https://cdn.jsdelivr.net/gh/bianyujin/gameapp@v1.00/games.json';
         const localVersion = Storage.getItem('gamehub_local_data_version');
-        
+
+        // 1 小时内查过就不再查，放在最前避免无谓的 HEAD 请求
+        const lastCheckTime = Storage.getItem('gamehub_last_update_check');
+        if (lastCheckTime && (Date.now() - parseInt(lastCheckTime)) < 3600000) {
+            return;
+        }
+
         try {
-            const response = await fetch(githubUrl, { method: 'HEAD' });
+            const response = await fetchWithTimeout(githubUrl, { method: 'HEAD' }, 10000);
             if (!response.ok) return;
-            
+
             const lastModified = response.headers.get('Last-Modified');
             const etag = response.headers.get('ETag');
             const remoteVersion = lastModified || etag || Date.now().toString();
-            
-            const lastCheckTime = Storage.getItem('gamehub_last_update_check');
-            const now = Date.now();
-            
-            if (lastCheckTime && (now - parseInt(lastCheckTime)) < 3600000) {
-                return;
-            }
-            
-            Storage.setItem('gamehub_last_update_check', now.toString());
+
+            Storage.setItem('gamehub_last_update_check', Date.now().toString());
             
             const saved = Storage.getItem('gamehub_games');
             if (!saved) {
@@ -2906,7 +2927,7 @@ const App = {
                 return;
             }
             
-            const response2 = await fetch(githubUrl);
+            const response2 = await fetchWithTimeout(githubUrl, {}, 15000);
             if (!response2.ok) return;
             
             const remoteData = await response2.json();

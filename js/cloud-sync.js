@@ -325,7 +325,10 @@ const CloudSync = {
         console.log('尝试从config.json加载配置...');
         const fallback = 'https://cdn.jsdelivr.net/gh/bianyujin/gameapp@main/games.json';
         try {
-            const t = await fetch('config.json?t=' + Date.now(), { cache: 'no-cache' });
+            // 10 秒超时：config.json 拉不动就走 fallback，不卡启动链
+            const ctrl = new AbortController();
+            const timer = setTimeout(() => ctrl.abort(), 10000);
+            const t = await fetch('config.json?t=' + Date.now(), { cache: 'no-cache', signal: ctrl.signal }).finally(() => clearTimeout(timer));
             if (t.ok) {
                 const o = await t.json();
                 this.config.latestVersion = o.latest_version || '';
