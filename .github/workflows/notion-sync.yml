@@ -30,6 +30,7 @@ jobs:
       - name: 运行 Notion 同步
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          ADMIN_KEY: ${{ secrets.ADMIN_KEY }}
         run: node sync-notion.js
 
       - name: 提取封面图
