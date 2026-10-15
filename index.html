@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#6366f1">
     <meta name="referrer" content="no-referrer">
-    <title>GAMEACG - 娓告垙鏁村悎骞冲彴</title>
+    <title>GAMEACG - 游戏整合平台</title>
     <style>body{background:#0f172a;margin:0}</style>
     <link rel="preload" href="js/app.js?v=34" as="script">
     <link rel="preload" href="js/cloud-sync.js?v=5" as="script">
@@ -20,11 +20,11 @@
     <div id="loadingScreen" style="position:fixed;inset:0;background:#0f172a;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity .3s;">
         <div style="width:64px;height:64px;border-radius:50%;border:2px solid #6366f1;background:url(avatars/tangmao.jpg) center/cover;margin-bottom:16px;"></div>
         <div style="color:#6366f1;font-size:16px;font-weight:600;">GAMEACG</div>
-        <div style="color:#475569;font-size:12px;margin-top:6px;">鍔犺浇涓?..</div>
+        <div style="color:#475569;font-size:12px;margin-top:6px;">加载中...</div>
     </div>
     <div id="app">
         <header class="app-header" id="appHeader">
-            <div class="header-title" id="headerTitle">棣栭〉</div>
+            <div class="header-title" id="headerTitle">首页</div>
             <div class="header-actions" id="headerActions"></div>
         </header>
 
@@ -32,19 +32,19 @@
             <div id="page-home" class="page active">
                 <div class="guide-banner" id="guideBanner" style="background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%); border-radius: 12px; padding: 12px 14px; margin-bottom: 16px;">
                     <div style="display:flex;align-items:center;gap:10px;">
-                        <span style="font-size:16px;flex-shrink:0;">馃摙</span>
+                        <span style="font-size:16px;flex-shrink:0;">📢</span>
                         <div class="marquee">
-                            <div class="marquee-track"><span>娆㈣繋鏉ュ埌 GAMEACG 路 棣栨浣跨敤闇€瑕佸湪銆愭垜鐨勩€戦〉闈㈡墜鍔ㄥ悓姝ユ暟鎹?路 鏈夐棶棰樺彲浠ュ叕浼楀彿鍙嶉鎴朡Q鍙嶉</span><span>娆㈣繋鏉ュ埌 GAMEACG 路 棣栨浣跨敤闇€瑕佸湪銆愭垜鐨勩€戦〉闈㈡墜鍔ㄥ悓姝ユ暟鎹?路 鏈夐棶棰樺彲浠ュ叕浼楀彿鍙嶉鎴朡Q鍙嶉</span></div>
+                            <div class="marquee-track"><span>欢迎来到 GAMEACG · 首次使用需要在【我的】页面手动同步数据 · 有问题可以公众号反馈或QQ反馈</span><span>欢迎来到 GAMEACG · 首次使用需要在【我的】页面手动同步数据 · 有问题可以公众号反馈或QQ反馈</span></div>
                         </div>
                     </div>
                 </div>
                 <div class="random-image-section">
-                    <div style="font-size:12px;color:#64748b;margin-bottom:6px;">馃摲 P绔欓殢鏈哄浘鐗?/div>
+                    <div style="font-size:12px;color:#64748b;margin-bottom:6px;">📷 P站随机图片</div>
                     <div class="random-image-container" id="randomImageContainer">
-                        <img id="randomImage" src="" alt="闅忔満鍥剧墖" style="display: none;">
+                        <img id="randomImage" src="" alt="随机图片" style="display: none;">
                         <div class="image-placeholder" id="imagePlaceholder">
                             <div class="placeholder-icon"><div class="ph-meme"></div></div>
-                            <div class="placeholder-text">鍔犺浇涓?..</div>
+                            <div class="placeholder-text">加载中...</div>
                         </div>
                     </div>
                 </div>
@@ -53,8 +53,8 @@
             <div id="page-table" class="page">
                 <div class="table-toolbar">
                     <div class="table-search-box">
-                        <span class="search-icon">馃攳</span>
-                        <input type="text" id="tableSearch" placeholder="鎼滅储..." enterkeyhint="search">
+                        <span class="search-icon">🔍</span>
+                        <input type="text" id="tableSearch" placeholder="搜索...">
                     </div>
 
                 </div>
@@ -68,8 +68,8 @@
 
             <div id="page-notion" class="page">
                 <header class="page-header" style="display: flex; align-items: center; padding: 12px 16px; background: #1e1b4b; border-bottom: 1px solid #334155;">
-                    <button class="back-btn" id="notionBackBtn" style="background: none; border: none; color: #a5b4fc; font-size: 16px; cursor: pointer; padding: 8px 12px; border-radius: 6px;">鈫?杩斿洖</button>
-                    <h3 class="page-title" style="margin: 0; color: #e2e8f0; font-size: 16px;">澶囩敤</h3>
+                    <button class="back-btn" id="notionBackBtn" style="background: none; border: none; color: #a5b4fc; font-size: 16px; cursor: pointer; padding: 8px 12px; border-radius: 6px;">← 返回</button>
+                    <h3 class="page-title" style="margin: 0; color: #e2e8f0; font-size: 16px;">备用</h3>
                 </header>
                 <div class="webview-container" id="notionWebView" style="height: calc(100vh - 120px); overflow: hidden;">
                     <iframe id="notionIframe" src="" style="width: 100%; height: 100%; border: none;"></iframe>
@@ -78,13 +78,13 @@
 
             <div id="page-collections" class="page">
                 <header class="page-header" style="display: flex; align-items: center; padding: 12px 16px; background: #1e1b4b; border-bottom: 1px solid #334155;">
-                    <button class="back-btn" onclick="App.switchPage('home')" style="background: none; border: none; color: #a5b4fc; font-size: 16px; cursor: pointer; padding: 8px 12px; border-radius: 6px;">鈫?杩斿洖</button>
-                    <h3 class="page-title" style="margin: 0; color: #e2e8f0; font-size: 16px;">馃摎 娓告垙鍚堥泦</h3>
+                    <button class="back-btn" onclick="App.switchPage('home')" style="background: none; border: none; color: #a5b4fc; font-size: 16px; cursor: pointer; padding: 8px 12px; border-radius: 6px;">← 返回</button>
+                    <h3 class="page-title" style="margin: 0; color: #e2e8f0; font-size: 16px;">📚 游戏合集</h3>
                 </header>
                 <div class="table-toolbar">
                     <div class="table-search-box">
-                        <span class="search-icon">馃攳</span>
-                        <input type="text" id="collectionsSearch" placeholder="鎼滅储鍚堥泦..." enterkeyhint="search">
+                        <span class="search-icon">🔍</span>
+                        <input type="text" id="collectionsSearch" placeholder="搜索合集...">
                     </div>
                 </div>
                 <div class="games-grid" id="collectionsBody"></div>
@@ -99,41 +99,41 @@
                         <img id="userAvatar" src="avatars/laopo.jpg" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" onerror="this.src='avatars/laopo.jpg'">
                     </div>
                     <div class="profile-info">
-                        <h2 class="profile-name">GAMEACG 鐢ㄦ埛</h2>
+                        <h2 class="profile-name">GAMEACG 用户</h2>
                         <p class="profile-email" style="cursor: pointer;" onclick="App.copyLink()">vlink.cc/bayj</p>
                     </div>
                 </div>
 
                 <div class="settings-section">
-                    <h3 class="settings-title">鎴戠殑鏁版嵁</h3>
+                    <h3 class="settings-title">我的数据</h3>
                     <div class="settings-list">
                         <div class="settings-item" onclick="App.showFavorites()" style="cursor: pointer;">
-                            <span class="settings-icon">猸?/span>
-                            <span class="settings-label">鎴戠殑鏀惰棌</span>
+                            <span class="settings-icon">⭐</span>
+                            <span class="settings-label">我的收藏</span>
                             <span class="settings-value" id="favoritesCount">0</span>
                         </div>
                         <div class="settings-item" onclick="App.showHistory()" style="cursor: pointer;">
-                            <span class="settings-icon">馃摐</span>
-                            <span class="settings-label">娴忚鍘嗗彶</span>
+                            <span class="settings-icon">📜</span>
+                            <span class="settings-label">浏览历史</span>
                             <span class="settings-value" id="historyCount">0</span>
                         </div>
                     </div>
                 </div>
 
                 <div class="settings-section">
-                    <h3 class="settings-title">閫氱敤璁剧疆</h3>
+                    <h3 class="settings-title">通用设置</h3>
                     <div class="settings-list">
                         <div class="settings-item">
-                            <span class="settings-icon">馃寵</span>
-                            <span class="settings-label">澶滈棿妯″紡</span>
+                            <span class="settings-icon">🌙</span>
+                            <span class="settings-label">夜间模式</span>
                             <label class="switch">
                                 <input type="checkbox" checked id="darkModeToggle">
                                 <span class="slider"></span>
                             </label>
                         </div>
                         <div class="settings-item">
-                            <span class="settings-icon">馃攧</span>
-                            <span class="settings-label">鑷姩鍚屾鏁版嵁 <span style="font-size:10px;color:#f59e0b;background:#f59e0b20;padding:1px 5px;border-radius:3px;">beta</span></span>
+                            <span class="settings-icon">🔄</span>
+                            <span class="settings-label">自动同步数据 <span style="font-size:10px;color:#f59e0b;background:#f59e0b20;padding:1px 5px;border-radius:3px;">beta</span></span>
                             <label class="switch">
                                 <input type="checkbox" id="autoSyncToggle">
                                 <span class="slider"></span>
@@ -143,21 +143,21 @@
                 </div>
 
                 <div class="settings-section">
-                    <h3 class="settings-title">鏇村</h3>
+                    <h3 class="settings-title">更多</h3>
                     <div class="settings-list">
                                                 <div class="settings-item" onclick="App.showJieyaMima()" style="cursor:pointer;">
-                            <span class="settings-icon">馃攽</span>
-                            <span class="settings-label">瑙ｅ帇鏁欑▼涓庡伐鍏?/span>
-                            <span class="settings-value">鈥?/span>
+                            <span class="settings-icon">🔑</span>
+                            <span class="settings-label">解压教程与工具</span>
+                            <span class="settings-value">›</span>
                         </div>
 <div class="settings-item" id="notionBackupBtn">
-                            <span class="settings-icon">馃搵</span>
-                            <span class="settings-label">澶囩敤</span>
-                            <span class="settings-arrow">鈥?/span>
+                            <span class="settings-icon">📋</span>
+                            <span class="settings-label">备用</span>
+                            <span class="settings-arrow">›</span>
                         </div>
                         <div class="settings-item">
-                            <span class="settings-icon">馃柤锔?/span>
-                            <span class="settings-label">灏侀潰棰勮鍥?<span style="font-size:10px;color:#f59e0b;background:#f59e0b20;padding:1px 5px;border-radius:3px;">beta</span></span>
+                            <span class="settings-icon">🖼️</span>
+                            <span class="settings-label">封面预览图 <span style="font-size:10px;color:#f59e0b;background:#f59e0b20;padding:1px 5px;border-radius:3px;">beta</span></span>
                             <label class="switch">
                                 <input type="checkbox" id="coverPreviewToggle">
                                 <span class="slider"></span>
@@ -167,38 +167,38 @@
                 </div>
 
                 <div class="settings-section">
-                    <h3 class="settings-title">浜戠鍚屾</h3>
+                    <h3 class="settings-title">云端同步</h3>
                     <div class="settings-list">
                         <div class="settings-item">
-                            <span class="settings-icon">鈽侊笍</span>
-                            <span class="settings-label">浠庝簯绔幏鍙?/span>
-                            <button class="btn-small" id="syncFromCloudBtn">鍚屾</button>
+                            <span class="settings-icon">☁️</span>
+                            <span class="settings-label">从云端获取</span>
+                            <button class="btn-small" id="syncFromCloudBtn">同步</button>
                         </div>
                         <div class="settings-item">
-                            <span class="settings-icon">馃攧</span>
-                            <span class="settings-label">閲嶇疆鏁版嵁</span>
-                            <button class="btn-small" onclick="App.clearCache()">閲嶇疆</button>
+                            <span class="settings-icon">🔄</span>
+                            <span class="settings-label">重置数据</span>
+                            <button class="btn-small" onclick="App.clearCache()">重置</button>
                         </div>
                     </div>
                 </div>
 
                 <div class="settings-section">
-                    <h3 class="settings-title">鍏充簬</h3>
+                    <h3 class="settings-title">关于</h3>
                     <div class="settings-list">
                         <div class="settings-item" id="versionItem">
-                            <span class="settings-icon">鈩癸笍</span>
-                            <span class="settings-label">鐗堟湰</span>
-                            <span class="settings-value" id="versionValue">缃戦〉鐗?/span>
+                            <span class="settings-icon">ℹ️</span>
+                            <span class="settings-label">版本</span>
+                            <span class="settings-value" id="versionValue">网页版</span>
                         </div>
                         <div class="settings-item" id="dataSourceItem">
-                            <span class="settings-icon">馃搮</span>
-                            <span class="settings-label">鏈€鍚庢洿鏂版椂闂?/span>
-                            <span class="settings-value" id="dataSourceValue" style="font-size:12px;">鏈悓姝?/span>
+                            <span class="settings-icon">📅</span>
+                            <span class="settings-label">最后更新时间</span>
+                            <span class="settings-value" id="dataSourceValue" style="font-size:12px;">未同步</span>
                         </div>
                         <div class="settings-item" onclick="App.showUserAgreement()" style="cursor:pointer;">
-                            <span class="settings-icon">馃搫</span>
-                            <span class="settings-label">鐢ㄦ埛鍗忚</span>
-                            <span class="settings-value">鈥?/span>
+                            <span class="settings-icon">📄</span>
+                            <span class="settings-label">用户协议</span>
+                            <span class="settings-value">›</span>
                         </div>
                     </div>
                 </div>
@@ -207,23 +207,23 @@
 
         <nav class="app-nav">
             <button class="nav-item active" data-page="home">
-                <span class="nav-icon">馃彔</span>
-                <span class="nav-label">棣栭〉</span>
+                <span class="nav-icon">🏠</span>
+                <span class="nav-label">首页</span>
             </button>
             <button class="nav-item" data-page="table">
-                <span class="nav-icon">馃搧</span>
-                <span class="nav-label">鏁版嵁</span>
+                <span class="nav-icon">📁</span>
+                <span class="nav-label">数据</span>
             </button>
             <button class="nav-item" data-page="profile">
-                <span class="nav-icon">馃懁</span>
-                <span class="nav-label">鎴戠殑</span>
+                <span class="nav-icon">👤</span>
+                <span class="nav-label">我的</span>
             </button>
         </nav>
     </div>
 
     <div id="toast" class="toast hidden"></div>
 
-    <button class="add-game-fab" id="addGameFab" onclick="App.refreshPage()" title="鍒锋柊">馃攧</button>
+    <button class="add-game-fab" id="addGameFab" onclick="App.refreshPage()" title="刷新">🔄</button>
 
     <script src="js/app.js?v=34"></script>
     <script src="js/cloud-sync.js?v=5"></script>
@@ -236,18 +236,18 @@
                               window.location.hostname === 'localhost';
             
             if (isWebView) {
-                // WebView鐜锛氬己鍒舵敞閿€鎵€鏈塖W锛岀‘淇濅笉鎷︽埅浠讳綍璇锋眰
+                // WebView环境：强制注销所有SW，确保不拦截任何请求
                 if ('serviceWorker' in navigator) {
                     navigator.serviceWorker.getRegistrations().then(regs => {
                         regs.forEach(r => r.unregister());
-                        console.log('[App] WebView鐜锛屽凡娉ㄩ攢', regs.length, '涓猄ervice Worker');
+                        console.log('[App] WebView环境，已注销', regs.length, '个Service Worker');
                     });
                 }
             } else if ('serviceWorker' in navigator) {
                 window.addEventListener('load', () => {
                     navigator.serviceWorker.register('./sw.js')
-                        .then(r => console.log('SW 娉ㄥ唽鎴愬姛'))
-                        .catch(e => console.log('SW 娉ㄥ唽澶辫触', e));
+                        .then(r => console.log('SW 注册成功'))
+                        .catch(e => console.log('SW 注册失败', e));
                 });
             }
             
@@ -296,13 +296,13 @@
                 });
             }
 
-            // 鐗堟湰鏄剧ず锛欰pp 鍐呰鍘熺敓鐪熷疄鐗堟湰鍙凤紙GameApp.version() 鐢?v2.50+ 鎻愪緵锛夛紝
-            // 娴忚鍣ㄩ噷鏄剧ず"缃戦〉鐗?锛涜€佺増鏈?App 娌℃湁 version() 鎺ュ彛锛屼繚鐣欏厹搴曟枃妗?
+            // 版本显示：App 内读原生真实版本号（GameApp.version() 由 v2.50+ 提供），
+            // 浏览器里显示"网页版"；老版本 App 没有 version() 接口，保留兜底文案
             try {
                 const versionValue = document.getElementById('versionValue');
                 if (versionValue && /GAMEACGApp/.test(navigator.userAgent)) {
                     if (typeof GameApp !== 'undefined' && GameApp && typeof GameApp.version === 'function') {
-                        versionValue.textContent = 'v' + GameApp.version() + '锛圓pp锛?;
+                        versionValue.textContent = 'v' + GameApp.version() + '（App）';
                     }
                 }
             } catch (e) {}
@@ -312,7 +312,7 @@
             const addGameFab = document.getElementById('addGameFab');
             if (addGameFab) addGameFab.style.display = 'flex';
 
-            // 灏侀潰棰勮寮€鍏?
+            // 封面预览开关
             const coverToggle = document.getElementById('coverPreviewToggle');
             if (coverToggle) {
                 coverToggle.checked = App._coverEnabled || false;
@@ -321,43 +321,43 @@
                         App.showAgeVerifyModal();
                     } else {
                         App.setCoverEnabled(false);
-                        App.showToast('灏侀潰棰勮宸插叧闂?);
+                        App.showToast('封面预览已关闭');
                     }
                 });
             }
 
-            // 鑷姩鍚屾寮€鍏?
+            // 自动同步开关
             const autoSyncToggle = document.getElementById('autoSyncToggle');
             if (autoSyncToggle) {
                 try { autoSyncToggle.checked = Storage.getItem('gamehub_auto_sync_enabled') === 'true'; } catch(e) {}
                 autoSyncToggle.addEventListener('change', () => {
                     try { Storage.setItem('gamehub_auto_sync_enabled', autoSyncToggle.checked ? 'true' : 'false'); } catch(e) {}
                     if (autoSyncToggle.checked) {
-                        App.showToast('鑷姩鍚屾宸插紑鍚紝涓嬫鎵撳紑灏嗚嚜鍔ㄦ媺鍙栨渶鏂版暟鎹?);
-                        // 绔嬪嵆瑙﹀彂涓€娆″悓姝?
+                        App.showToast('自动同步已开启，下次打开将自动拉取最新数据');
+                        // 立即触发一次同步
                         CloudSync.syncFromCloud();
                     } else {
-                        App.showToast('鑷姩鍚屾宸插叧闂紝闇€鎵嬪姩鍚屾鑾峰彇鏁版嵁');
+                        App.showToast('自动同步已关闭，需手动同步获取数据');
                     }
                 });
             }
         });
     </script>
     <script>
-    // 鐢ㄦ埛鍗忚锛堟垜鐨勨啋鍏充簬 杩涘叆锛涘彇鍏剁簿鍗庯細灏戜緺鎶婃寚鍗楀仛鎴愬唴瀹归〉鑰岄潪鍚姩鎷︽埅锛?
+    // 用户协议（我的→关于 进入；取其精华：少侠把指南做成内容页而非启动拦截）
     App.showJieyaMima = function () {
         if (document.getElementById('jieyaModal')) return;
         document.body.insertAdjacentHTML('beforeend', `
         <div class="modal" id="jieyaModal">
             <div class="modal-backdrop" onclick="document.getElementById('jieyaModal').remove()"></div>
             <div class="modal-content" style="max-width:720px;max-height:94vh;margin:0 auto;">
-                <div class="modal-header"><h3 class="modal-title">馃攽 瑙ｅ帇鏁欑▼涓庡伐鍏?/h3></div>
+                <div class="modal-header"><h3 class="modal-title">🔑 解压教程与工具</h3></div>
                 <div class="modal-body" style="max-height:calc(94vh - 190px);overflow:auto;">
-                    <img src="jieyamima.jpg" style="display:block;margin:0 auto;max-width:100%;max-height:calc(94vh - 250px);width:auto;border-radius:8px;" alt="瑙ｅ帇鏁欑▼涓庡伐鍏?>
-                    <p style="font-size:12px;color:#64748b;text-align:center;">瑙ｅ帇宸ュ叿鍜岃棰戞暀绋嬪弬鑰?vlink.cc/bayj</p>
+                    <img src="jieyamima.jpg" style="display:block;margin:0 auto;max-width:100%;max-height:calc(94vh - 250px);width:auto;border-radius:8px;" alt="解压教程与工具">
+                    <p style="font-size:12px;color:#64748b;text-align:center;">解压工具和视频教程参考 vlink.cc/bayj</p>
                 </div>
                 <div class="modal-footer" style="justify-content:center;">
-                    <button class="btn btn-primary" onclick="document.getElementById('jieyaModal').remove()">鎴戠煡閬撲簡</button>
+                    <button class="btn btn-primary" onclick="document.getElementById('jieyaModal').remove()">我知道了</button>
                 </div>
             </div>
         </div>`);
@@ -368,16 +368,16 @@
         <div class="modal" id="userAgreementModal">
             <div class="modal-backdrop" onclick="document.getElementById('userAgreementModal').remove()"></div>
             <div class="modal-content" style="max-width:420px;">
-                <div class="modal-header"><h3 class="modal-title">馃搫 鐢ㄦ埛鍗忚</h3></div>
+                <div class="modal-header"><h3 class="modal-title">📄 用户协议</h3></div>
                 <div class="modal-body" style="font-size:13px;color:#94a3b8;line-height:1.9;">
-                    <p style="color:#f87171;">1. 鏈簲鐢ㄥ唴瀹归潰鍚戝勾婊?18 鍛ㄥ瞾鐨勬垚骞寸敤鎴枫€傚鏋滀綘鏈弧 18 鍛ㄥ瞾锛屾垨鎵€鍦ㄥ湴鍖烘硶寰嬬姝㈣闂垚浜哄唴瀹癸紝璇风珛鍗抽€€鍑烘湰搴旂敤銆?/p>
-                    <p>2. 鏈簲鐢ㄥ睍绀虹殑璧勬簮淇℃伅鍧囨潵鑷簰鑱旂綉骞冲彴锛屼粎渚涚埍濂借€呮祴璇曘€佸涔犱笌鎶€鏈箣鐢紝鐗堟潈褰掑彂琛屽叕鍙告墍鏈夛紝绂佹鐢ㄤ簬鍟嗕笟鐢ㄩ€旀垨浼犳挱鐗熷埄銆?/p>
-                    <p>3. 璇峰湪涓嬭浇鍚?24 灏忔椂鍐呰嚜瑙夊垹闄ょ浉鍏虫枃浠讹紱濡傛灉鍠滄锛岃璐拱姝ｇ増骞惰幏寰楀悎娉曟巿鏉冦€?/p>
-                    <p>4. 浜屾鎵撳寘銆佷簩娆¤浆鍙戦€犳垚鐨勬硶寰嬩镜鏉冮棶棰橈紝鐢变簩娆℃墦鍖呭彂甯冭€呫€佽浆鍙戣€呰嚜琛屾壙鎷咃紱鍥犱娇鐢ㄦ湰搴旂敤浜х敓鐨勪竴鍒囧悗鏋滅敱鐢ㄦ埛鑷璐熻矗锛屽紑鍙戣€呬笉鎵挎媴浠讳綍娉曞緥鍙婅繛甯﹁矗浠汇€?/p>
-                    <p>5. 鍚姩骞朵娇鐢ㄦ湰搴旂敤鍗宠涓哄凡闃呰骞跺悓鎰忎互涓婂叏閮ㄦ潯娆俱€?/p>
+                    <p style="color:#f87171;">1. 本应用内容面向年满 18 周岁的成年用户。如果你未满 18 周岁，或所在地区法律禁止访问成人内容，请立即退出本应用。</p>
+                    <p>2. 本应用展示的资源信息均来自互联网平台，仅供爱好者测试、学习与技术之用，版权归发行公司所有，禁止用于商业用途或传播牟利。</p>
+                    <p>3. 请在下载后 24 小时内自觉删除相关文件；如果喜欢，请购买正版并获得合法授权。</p>
+                    <p>4. 二次打包、二次转发造成的法律侵权问题，由二次打包发布者、转发者自行承担；因使用本应用产生的一切后果由用户自行负责，开发者不承担任何法律及连带责任。</p>
+                    <p>5. 启动并使用本应用即视为已阅读并同意以上全部条款。</p>
                 </div>
                 <div class="modal-footer" style="justify-content:center;">
-                    <button class="btn btn-primary" onclick="document.getElementById('userAgreementModal').remove()">鎴戠煡閬撲簡</button>
+                    <button class="btn btn-primary" onclick="document.getElementById('userAgreementModal').remove()">我知道了</button>
                 </div>
             </div>
         </div>`);
