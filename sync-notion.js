@@ -136,6 +136,15 @@ function findCol(headers, keyword) {
     return headers.findIndex(h => h.includes(keyword));
 }
 
+// 迅雷字段内容守卫：值里只要不含真正的迅雷/磁力链，且带图片链接，就判定为贴错的图片，整体丢弃
+function isImageOnlyLink(val) {
+    if (/pan\.xunlei\.com|magnet:\?xt=/i.test(val)) return false;
+    const urls = String(val).match(/https?:\/\/[^\s\n,，]+/gi) || [];
+    if (urls.length === 0) return false;
+    const imgRe = /\.(png|jpe?g|gif|webp|bmp|avif|svg)(\?|#|$)/i;
+    return urls.some(u => imgRe.test(u));
+}
+
 function mapRowToGame(row, headers, existingIds) {
     const get = (kw) => { const i = findCol(headers, kw); return i >= 0 ? (row[headers[i]] || '').trim() : ''; };
 
@@ -230,6 +239,11 @@ function mapRowToGame(row, headers, existingIds) {
         if (h.startsWith('_')) return; // 内部元数据（_notionPageId、_notionLastEditedTime 等），不入用户字段
         const val = (row[h] || '').trim();
         if (val) {
+            // 迅雷字段防呆：贴的是图片链接而不是迅雷链，直接丢弃不入库
+            if (h.includes('迅雷') && isImageOnlyLink(val)) {
+                console.log('  [' + label + '] 跳过图片链接（迅雷字段）: ' + String(val).slice(0, 80));
+                return;
+            }
             if (isPrivateField(h)) {
                 game.privateData[h] = val;
             } else {
