@@ -242,7 +242,10 @@ function mapRowToGame(row, headers, existingIds) {
         if (val) {
             // 迅雷字段防呆：贴的是图片链接而不是迅雷链，直接丢弃不入库
             if (h.includes('迅雷') && isImageOnlyLink(val)) {
-                console.log('  [' + label + '] 跳过图片链接（迅雷字段）: ' + String(val).slice(0, 80));
+                global.__xunleiImgSkipped = (global.__xunleiImgSkipped || 0) + 1;
+                if (global.__xunleiImgSkipped <= 10) {
+                    console.log('  跳过图片链接（迅雷字段）: ' + String(val).slice(0, 80));
+                }
                 return;
             }
             if (isPrivateField(h)) {
@@ -353,6 +356,9 @@ async function syncSource(source, outputFile, label) {
     const filtered = newItems; // 已在 mapRowToGame 里跳过无标题数据
     if (previewChangedCount > 0) {
         console.log('预览链接变化: ' + previewChangedCount + ' 个游戏将重新提取封面');
+    }
+    if (global.__xunleiImgSkipped > 0) {
+        console.log('迅雷字段图片链接清理: ' + global.__xunleiImgSkipped + ' 条被丢弃');
     }
 
     // 稳定性保护：拉取异常（空数据/数据量骤降）时拒绝覆盖，保留现有数据，避免 App 数据被清空
