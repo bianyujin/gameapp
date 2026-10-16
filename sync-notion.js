@@ -139,7 +139,8 @@ function findCol(headers, keyword) {
 // 迅雷字段内容守卫：值里只要不含真正的迅雷/磁力链，且带图片链接，就判定为贴错的图片，整体丢弃
 function isImageOnlyLink(val) {
     if (/pan\.xunlei\.com|magnet:\?xt=/i.test(val)) return false;
-    const urls = String(val).match(/https?:\/\/[^\s\n,，]+/gi) || [];
+    // 排除引号：HTML 属性里的 URL 以 " 或 ' 结尾，不能让引号混进 URL 再破坏扩展名判定
+    const urls = String(val).match(/https?:\/\/[^\s\n,，"']+/gi) || [];
     if (urls.length === 0) return false;
     const imgRe = /\.(png|jpe?g|gif|webp|bmp|avif|svg)(\?|#|$)/i;
     return urls.some(u => imgRe.test(u));
