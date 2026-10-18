@@ -45,6 +45,8 @@ function splitGames(gamesFile, outDir) {
         const rd = g._rawData || {};
         // 全文搜索 blob：与前端 getFilteredGames 对 _rawData 全值的 includes 匹配保持一致
         const blob = Object.values(rd).filter(v => typeof v === 'string').join('\n');
+        // 排序字段（评级/最后修改/创建）显式进 lite：前端排序按钮直接可用，不用拉详情分块
+        const gradeKey = Object.keys(rd).find(k => k.includes('评级'));
         liteGames.push({
             id: g.id,
             title: g.title,
@@ -58,7 +60,10 @@ function splitGames(gamesFile, outDir) {
             _rawData: {
                 '文件ID': rd['文件ID'] || '',
                 '类型': rd['类型'] || '',
-                '全文': blob
+                '全文': blob,
+                '_评级': gradeKey ? (rd[gradeKey] || '') : '',
+                '_最后修改': rd['最后修改时间'] || '',
+                '_创建': rd['创建时间'] || ''
             },
             _c: chunkIdx
         });

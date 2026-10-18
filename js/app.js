@@ -280,7 +280,7 @@ const App = {
     },
 
     copyLink() {
-        const text = 'https://vlink.cc/bayj';
+        const text = 'https://bayj.pages.dev/';
         try {
             if (navigator.clipboard) {
                 navigator.clipboard.writeText(text).then(() => {
@@ -1457,13 +1457,14 @@ const App = {
                 valB = String(valB).toLowerCase();
             } else if (column === 'updateDate') {
                 // 空字段算最旧（返回0），不回退到updateDate（当前时间）
-                const sa = a._rawData?.['最后修改时间'] || '';
-                const sb = b._rawData?.['最后修改时间'] || '';
+                // lite 条目时间在 _最后修改 字段（split-data 显式放进 lite）
+                const sa = a._rawData?.['最后修改时间'] || a._rawData?.['_最后修改'] || '';
+                const sb = b._rawData?.['最后修改时间'] || b._rawData?.['_最后修改'] || '';
                 valA = sa ? this.parseChineseDate(sa).getTime() : 0;
                 valB = sb ? this.parseChineseDate(sb).getTime() : 0;
             } else if (column === 'createDate') {
-                const sa = a._rawData?.['创建时间'] || '';
-                const sb = b._rawData?.['创建时间'] || '';
+                const sa = a._rawData?.['创建时间'] || a._rawData?.['_创建'] || '';
+                const sb = b._rawData?.['创建时间'] || b._rawData?.['_创建'] || '';
                 valA = sa ? this.parseChineseDate(sa).getTime() : 0;
                 valB = sb ? this.parseChineseDate(sb).getTime() : 0;
             } else if (column === 'title') {
@@ -1499,8 +1500,10 @@ const App = {
         const gradeVal = grade ? (gradeOrder[grade] || 0) : 0;
         if (!game._rawData) return gradeVal * 1000;
         const gradeKey = Object.keys(game._rawData).find(k => k.includes('评级（成品级别）'));
-        if (!gradeKey) return gradeVal * 1000;
-        const raw = (game._rawData[gradeKey] || '').toString();
+        // lite 条目：评级在 _评级 字段（split-data 显式放进 lite），原字段不存在
+        const raw = gradeKey
+            ? (game._rawData[gradeKey] || '').toString()
+            : (game._rawData['_评级'] || '').toString();
         const numMatch = raw.match(/(\d+(?:\.\d+)?)/);
         const score = numMatch ? parseFloat(numMatch[1]) : 0;
         return gradeVal * 1000 + score;
@@ -2229,10 +2232,11 @@ const App = {
     getGameGrade(game) {
         if (!game._rawData) return null;
         // 优先从「评级（成品级别）」字段取值，解析不出时回退到「评级」字段
+        // lite 条目回退到 _评级（split-data 显式放进 lite，用于排序/角标）
         const gradeKey = Object.keys(game._rawData).find(k => k.includes('评级（成品级别）'));
         let val = gradeKey ? (game._rawData[gradeKey] || '').toString().trim() : '';
         if (!val || val === '0' || val === '-' || val === gradeKey) {
-            val = (game._rawData['评级'] || '').toString().trim();
+            val = (game._rawData['评级'] || game._rawData['_评级'] || '').toString().trim();
             if (!val) return null;
         }
         // 处理各种格式：S / SS 80 / SSS 90 / A 50 / S(SS) / SS(SSS) 85 / 80 SS(SSS) 等
@@ -2355,7 +2359,7 @@ const App = {
                     </div>
                     <div class="modal-body" style="text-align:center;">
                         <p style="color:#f87171;font-size:13px;margin-bottom:12px;">封面预览图可能包含NSFW内容，确认要打开吗？</p>
-                        <p style="font-size:12px;color:#64748b;margin-bottom:16px;">可前往 <span style="color:#6366f1;text-decoration:underline;cursor:pointer;" onclick="App.copyLink()">vlink.cc/bayj</span> 获取密码</p>
+                        <p style="font-size:12px;color:#64748b;margin-bottom:16px;">可前往 <span style="color:#6366f1;text-decoration:underline;cursor:pointer;" onclick="App.copyLink()">bayj.pages.dev</span> 获取密码</p>
                         <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:16px;">
                             <input type="text" inputmode="text" autocomplete="off" id="ageInput" placeholder="请输入密码"
                                    style="width:180px;padding:8px 12px;border:1px solid #334155;border-radius:8px;background:#0f172a;color:#e2e8f0;text-align:center;font-size:14px;" />
