@@ -1442,62 +1442,50 @@ const App = {
     },
 
     sortGames(column, direction) {
-        // 评级排序特殊处理：无评级条目始终排在最后（两个方向都不挡在最前），
-        // 有评级的按 X>SSS>SS>S>A>B>C（同级别内按分数），方向控制升降
-        if (column === 'rating') {
-            this.games.sort((a, b) => {
-                const va = this.getGradeSortValue(a);
-                const vb = this.getGradeSortValue(b);
-                const aHas = this.getGameGrade(a) !== null;
-                const bHas = this.getGameGrade(b) !== null;
-                // 无评级永远垫底（稳定：两个都无则保持原序）
-                if (!aHas && !bHas) return 0;
-                if (!aHas) return 1;
-                if (!bHas) return -1;
-                return direction === 'asc' ? va - vb : vb - va;
-            });
-        } else {
-            this.games.sort((a, b) => {
-                let valA, valB;
+        this.games.sort((a, b) => {
+            let valA, valB;
 
-                if (column === 'id') {
-                    valA = a._rawData?.['文件ID'] || a.id || '';
-                    valB = b._rawData?.['文件ID'] || b.id || '';
-                    const numA = parseFloat(String(valA).replace(/[^0-9.]/g, ''));
-                    const numB = parseFloat(String(valB).replace(/[^0-9.]/g, ''));
-                    if (!isNaN(numA) && !isNaN(numB)) {
-                        return direction === 'asc' ? numA - numB : numB - numA;
-                    }
-                    valA = String(valA).toLowerCase();
-                    valB = String(valB).toLowerCase();
-                } else if (column === 'updateDate') {
-                    // 空字段算最旧（返回0），不回退到updateDate（当前时间）
-                    // lite 条目时间在 _最后修改 字段（split-data 显式放进 lite）
-                    const sa = a._rawData?.['最后修改时间'] || a._rawData?.['_最后修改'] || '';
-                    const sb = b._rawData?.['最后修改时间'] || b._rawData?.['_最后修改'] || '';
-                    valA = sa ? this.parseChineseDate(sa).getTime() : 0;
-                    valB = sb ? this.parseChineseDate(sb).getTime() : 0;
-                } else if (column === 'createDate') {
-                    const sa = a._rawData?.['创建时间'] || a._rawData?.['_创建'] || '';
-                    const sb = b._rawData?.['创建时间'] || b._rawData?.['_创建'] || '';
-                    valA = sa ? this.parseChineseDate(sa).getTime() : 0;
-                    valB = sb ? this.parseChineseDate(sb).getTime() : 0;
-                } else if (column === 'title') {
-                    valA = (a.title || '').toLowerCase();
-                    valB = (b.title || '').toLowerCase();
-                } else if (column === 'size') {
-                    valA = this.parseFileSize(a.title || '');
-                    valB = this.parseFileSize(b.title || '');
-                } else {
-                    valA = a[column] || 0;
-                    valB = b[column] || 0;
+            if (column === 'id') {
+                valA = a._rawData?.['文件ID'] || a.id || '';
+                valB = b._rawData?.['文件ID'] || b.id || '';
+                const numA = parseFloat(String(valA).replace(/[^0-9.]/g, ''));
+                const numB = parseFloat(String(valB).replace(/[^0-9.]/g, ''));
+                if (!isNaN(numA) && !isNaN(numB)) {
+                    return direction === 'asc' ? numA - numB : numB - numA;
                 }
+                valA = String(valA).toLowerCase();
+                valB = String(valB).toLowerCase();
+            } else if (column === 'updateDate') {
+                // 空字段算最旧（返回0），不回退到updateDate（当前时间）
+                // lite 条目时间在 _最后修改 字段（split-data 显式放进 lite）
+                const sa = a._rawData?.['最后修改时间'] || a._rawData?.['_最后修改'] || '';
+                const sb = b._rawData?.['最后修改时间'] || b._rawData?.['_最后修改'] || '';
+                valA = sa ? this.parseChineseDate(sa).getTime() : 0;
+                valB = sb ? this.parseChineseDate(sb).getTime() : 0;
+            } else if (column === 'createDate') {
+                const sa = a._rawData?.['创建时间'] || a._rawData?.['_创建'] || '';
+                const sb = b._rawData?.['创建时间'] || b._rawData?.['_创建'] || '';
+                valA = sa ? this.parseChineseDate(sa).getTime() : 0;
+                valB = sb ? this.parseChineseDate(sb).getTime() : 0;
+            } else if (column === 'title') {
+                valA = (a.title || '').toLowerCase();
+                valB = (b.title || '').toLowerCase();
+            } else if (column === 'rating') {
+                // 评级排序：X>SSS>SS>S>A>B>C>无，同级别按分数
+                valA = this.getGradeSortValue(a);
+                valB = this.getGradeSortValue(b);
+            } else if (column === 'size') {
+                valA = this.parseFileSize(a.title || '');
+                valB = this.parseFileSize(b.title || '');
+            } else {
+                valA = a[column] || 0;
+                valB = b[column] || 0;
+            }
 
-                if (valA < valB) return direction === 'asc' ? -1 : 1;
-                if (valA > valB) return direction === 'asc' ? 1 : -1;
-                return 0;
-            });
-        }
+            if (valA < valB) return direction === 'asc' ? -1 : 1;
+            if (valA > valB) return direction === 'asc' ? 1 : -1;
+            return 0;
+        });
 
         this._userSorted = true;
         this.closeSortModal();
