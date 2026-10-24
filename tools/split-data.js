@@ -69,8 +69,8 @@ function splitGames(gamesFile, outDir) {
             _c: chunkIdx
         });
         // v3 专用更轻的索引（games-v3.json）：不带全文 blob（v3 搜索只用 title/fid/category）、
-        // 封面只留前 2 张（卡片轮换够用，详情预览图走 games-full），其余同 lite。
-        // v2 旧前端继续读 games-lite.json，互不影响。
+        // 封面留前 6 张（卡片轮换 + 详情预览图都用它；games-full 分片没有顶层 coverUrls，
+        // v3 不会去拉 full 当图源），其余同 lite。v2 旧前端继续读 games-lite.json，互不影响。
         v3Games.push({
             id: g.id,
             title: g.title,
@@ -78,7 +78,7 @@ function splitGames(gamesFile, outDir) {
             category: g.category,
             rating: g.rating,
             updateDate: g.updateDate,
-            coverUrls: (g.coverUrls || []).slice(0, 2),
+            coverUrls: (g.coverUrls || []).slice(0, 6),
             _rawData: {
                 '文件ID': rd['文件ID'] || '',
                 '_评级': gradeKey ? (rd[gradeKey] || '') : '',
