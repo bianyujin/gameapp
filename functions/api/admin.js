@@ -87,24 +87,51 @@ async function patchConfig(token, notice) {
     if (!next.id) next.id = 'n' + Date.now().toString(36);
 
     cur.app_notice = next;
-    const body = JSON.stringify({
+    const urlPut = `https://api.github.com/repos/${REPO}/contents/${CONFIG_PATH}`;
+    const makeBody = () => JSON.stringify({
         message: next.text ? '首页公告更新（站点后台提交）' : '首页公告清除（站点后台提交）',
         content: textToB64(JSON.stringify(cur, null, 2) + '\n'),
         sha
     });
-    let put;
-    try {
-        put = await fetch(`https://api.github.com/repos/${REPO}/contents/${CONFIG_PATH}`, {
-            method: 'PUT',
-            headers: { ...ghHeaders(token), 'Content-Type': 'application/json' },
-            body
-        });
-    } catch (e) {
-        return { error: '提交 GitHub 失败：' + e.message, status: 502 };
+    // AD: 连点开关时两次 PUT 会撞 sha（409/422）——重读最新内容按本次 notice 重新合成再试，最多 3 次
+    let put = null;
+    let detail = '';
+    for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+            put = await fetch(urlPut, {
+                method: 'PUT',
+                headers: { ...ghHeaders(token), 'Content-Type': 'application/json' },
+                body: makeBody()
+            });
+        } catch (e) {
+            return { error: '提交 GitHub 失败：' + e.message, status: 502 };
+        }
+        if (put.ok) break;
+        detail = await put.text().catch(() => '');
+        if (put.status !== 409 && put.status !== 422) break;
+        try {
+            const res2 = await fetch(url + '', { headers: ghHeaders(token) });
+            if (!res2.ok) {
+                return { error: '读取 config.json 失败：GitHub 返回 ' + res2.status, status: 502 };
+            }
+            const j2 = await res2.json();
+            sha = j2.sha;
+            cur = JSON.parse(b64ToText(j2.content)) || {};
+            const prev2 = cur.app_notice && typeof cur.app_notice === 'object' ? cur.app_notice : {};
+            next = {
+                text: typeof notice.text === 'string' ? notice.text : (prev2.text || ''),
+                link: typeof notice.link === 'string' ? notice.link : (prev2.link || ''),
+                id: typeof notice.id === 'string' && notice.id ? notice.id : (prev2.id || ''),
+                force: typeof notice.force === 'boolean' ? notice.force : !!prev2.force
+            };
+            if (!next.id) next.id = 'n' + Date.now().toString(36);
+            cur.app_notice = next;
+        } catch (e) {
+            return { error: '读取 config.json 失败：' + e.message, status: 502 };
+        }
     }
-    if (!put.ok) {
-        const detail = await put.text().catch(() => '');
-        return { error: `GitHub 提交失败（${put.status}）：${detail.slice(0, 200)}`, status: 502 };
+    if (!put || !put.ok) {
+        return { error: `GitHub 提交失败（${put ? put.status : 'ERR'}）：${detail.slice(0, 200)}`, status: 502 };
     }
     const r = await put.json().catch(() => ({}));
     return {
