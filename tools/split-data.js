@@ -38,6 +38,7 @@ function splitGames(gamesFile, outDir) {
     fs.readdirSync(fullDir).forEach(f => { if (f.endsWith('.json')) fs.unlinkSync(path.join(fullDir, f)); });
 
     const liteGames = [];
+    const v3Games = [];
     const chunkFiles = new Map();
 
     games.forEach((g, i) => {
@@ -67,6 +68,24 @@ function splitGames(gamesFile, outDir) {
             },
             _c: chunkIdx
         });
+        // v3 专用更轻的索引（games-v3.json）：不带全文 blob（v3 搜索只用 title/fid/category）、
+        // 封面只留前 2 张（卡片轮换够用，详情预览图走 games-full），其余同 lite。
+        // v2 旧前端继续读 games-lite.json，互不影响。
+        v3Games.push({
+            id: g.id,
+            title: g.title,
+            icon: g.icon,
+            category: g.category,
+            rating: g.rating,
+            updateDate: g.updateDate,
+            coverUrls: (g.coverUrls || []).slice(0, 2),
+            _rawData: {
+                '文件ID': rd['文件ID'] || '',
+                '_评级': gradeKey ? (rd[gradeKey] || '') : '',
+                '_最后修改': rd['最后修改时间'] || ''
+            },
+            _c: chunkIdx
+        });
         if (!chunkFiles.has(chunkIdx)) {
             chunkFiles.set(chunkIdx, []);
         }
@@ -84,13 +103,18 @@ function splitGames(gamesFile, outDir) {
     const lite = { v: version, count: games.length, fields, games: liteGames };
     fs.writeFileSync(path.join(outDir, 'games-lite.json'), JSON.stringify(lite), 'utf-8');
 
+    const v3 = { v: version, count: games.length, games: v3Games };
+    fs.writeFileSync(path.join(outDir, 'games-v3.json'), JSON.stringify(v3), 'utf-8');
+
     const mb = b => (b / 1024 / 1024).toFixed(2) + 'MB';
     const kb = b => (b / 1024).toFixed(0) + 'KB';
     const liteSize = fs.statSync(path.join(outDir, 'games-lite.json')).size;
+    const v3Size = fs.statSync(path.join(outDir, 'games-v3.json')).size;
     let chunkSize = 0;
     chunkFiles.forEach((_, idx) => { chunkSize += fs.statSync(path.join(fullDir, idx + '.json')).size; });
     console.log(`[split] games=${games.length} 版本=${version || '无'}`);
     console.log(`[split] games-lite.json: ${kb(liteSize)}（原 games.json: ${mb(fs.statSync(gamesFile).size)}）`);
+    console.log(`[split] games-v3.json: ${kb(v3Size)}（v3 专用轻索引）`);
     console.log(`[split] games-full: ${chunkFiles.size} 块, 共 ${mb(chunkSize)}`);
 }
 
