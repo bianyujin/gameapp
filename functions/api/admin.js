@@ -76,8 +76,10 @@ async function patchConfig(token, notice) {
 
     // 只覆盖 app_notice 里明确传了的字段，其余（latest_version / update_url / games_data_version…）
     // 一个字都不能动 —— 原生 App 的更新逻辑全靠它们。
+    // AQ: 这里必须是 let —— 409/422 重试循环要按最新 sha 重新合成 body（const 曾让整个
+    //     Functions 构建失败，生产站冻结两天没部署任何新内容）。
     const prev = cur.app_notice && typeof cur.app_notice === 'object' ? cur.app_notice : {};
-    const next = {
+    let next = {
         text: typeof notice.text === 'string' ? notice.text : (prev.text || ''),
         link: typeof notice.link === 'string' ? notice.link : (prev.link || ''),
         id: typeof notice.id === 'string' && notice.id ? notice.id : (prev.id || ''),
